@@ -47,7 +47,7 @@ def validate(reg: dict) -> list[str]:
         if not isinstance(app, dict):
             errors.append(f"{where} must be an object")
             continue
-        extra = set(app) - {"id", "name", "summary", "url"}
+        extra = set(app) - {"id", "mark", "name", "summary", "url"}
         if extra:
             errors.append(f"{where} has unknown fields: {sorted(extra)}")
         if not ID_RE.match(str(app.get("id", ""))):
@@ -59,6 +59,9 @@ def validate(reg: dict) -> list[str]:
         for k in ("name", "summary"):
             if not isinstance(app.get(k), str) or not app[k].strip() or len(app[k]) > 80:
                 errors.append(f"{where}.{k} must be 1-80 characters")
+        mark = app.get("mark")
+        if mark is not None and (not isinstance(mark, str) or not 1 <= len(mark) <= 3 or not mark.strip()):
+            errors.append(f"{where}.mark must be 1-3 characters")
         url = app.get("url")
         if not isinstance(url, str) or not url.startswith("https://") or any(c in url for c in "\"'<> "):
             errors.append(f"{where}.url must be a plain https:// URL")

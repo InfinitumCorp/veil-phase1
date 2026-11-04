@@ -118,6 +118,12 @@ def test_registry_signed_by_untrusted_key_is_rejected(signed_registry):
         registry_tool.verify(reg, keys)
 
 
+def test_bad_app_mark_is_refused():
+    bad = {"schema": 1, "version": 1, "apps": [
+        {"id": "x", "mark": "TOOLONG", "name": "X", "summary": "s", "url": "https://x.example"}]}
+    assert registry_tool.validate(bad)
+
+
 def test_unsafe_registry_urls_are_refused():
     bad = {"schema": 1, "version": 1, "apps": [
         {"id": "x", "name": "X", "summary": "s", "url": "javascript:alert(1)"}]}
@@ -158,7 +164,7 @@ def test_dashboard_makes_no_network_requests(signed_registry, root, tmp_path, wo
         page.goto((site / workspace / "home.html").as_uri())
         page.wait_for_load_state("networkidle")
         status = page.text_content("#tor-status-text")
-        tiles = page.locator("#launcher .tile").count() if workspace == "authenticated" else 0
+        tiles = page.locator("#launcher .app").count() if workspace == "authenticated" else 0
         browser.close()
 
     remote = [u for u in requests if not u.startswith("file://")]

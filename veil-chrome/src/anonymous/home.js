@@ -8,8 +8,8 @@
   const STATUS_TEXT = {
     connected: "Connected to Tor",
     connecting: "Connecting to Tor…",
-    error: "Not connected to Tor. Browsing is paused until Tor reconnects.",
-    preview: "Preview mode: Tor status appears in the VEIL browser",
+    error: "Not connected to Tor; browsing is paused",
+    preview: "Preview mode",
   };
 
   VeilBridge.on("VEIL:TorStatus", ({ state }) => {
@@ -20,25 +20,15 @@
 
   VeilBridge.on("VEIL:Bookmarks", ({ items }) => {
     bookmarks.replaceChildren();
-    if (!Array.isArray(items) || items.length === 0) {
-      const p = document.createElement("p");
-      p.className = "empty";
-      p.textContent = "No bookmarks yet.";
-      bookmarks.append(p);
-      return;
-    }
-    for (const item of items.slice(0, 24)) {
-      // Only text and the URL are used: no favicons, which could trigger
-      // network fetches or leak which sites are bookmarked.
+    if (!Array.isArray(items)) return;
+    for (const item of items.slice(0, 12)) {
+      // Text only: no favicons, which could trigger fetches or reveal
+      // which sites are bookmarked.
       const a = document.createElement("a");
-      a.className = "tile";
+      a.className = "bookmark";
       a.href = item.url;
       a.rel = "noreferrer";
-      const strong = document.createElement("strong");
-      strong.textContent = item.title || item.url;
-      const span = document.createElement("span");
-      try { span.textContent = new URL(item.url).host; } catch { span.textContent = ""; }
-      a.append(strong, span);
+      a.textContent = item.title || item.url;
       bookmarks.append(a);
     }
   });
