@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare what websites can see in VEIL's anonymous workspace vs stock Tor Browser.
+"""Compare what websites can see in VEIL vs stock Tor Browser.
 
 Gate 2 of Phase I. Runs the same collector page in both browsers, at the
 same security level and window size, and fails if any signal differs.

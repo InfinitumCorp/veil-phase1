@@ -17,9 +17,10 @@ const VeilBridge = (() => {
     "VEIL:NewIdentity",
     "VEIL:NewCircuit",
     "VEIL:GetBookmarks",
-    "VEIL:SwitchWorkspace",
+    "VEIL:OpenSignIn",
+    "VEIL:GetAccount",
   ]);
-  const INCOMING = new Set(["VEIL:TorStatus", "VEIL:Bookmarks"]);
+  const INCOMING = new Set(["VEIL:TorStatus", "VEIL:Bookmarks", "VEIL:Account"]);
 
   const native =
     typeof RPMSendAsyncMessage === "function" &&
@@ -55,6 +56,7 @@ const VeilBridge = (() => {
     queueMicrotask(() => {
       if (name === "VEIL:GetTorStatus") emit("VEIL:TorStatus", { state: "preview" });
       if (name === "VEIL:GetBookmarks") emit("VEIL:Bookmarks", { items: [] });
+      if (name === "VEIL:GetAccount") emit("VEIL:Account", { signedIn: false });
     });
   }
 

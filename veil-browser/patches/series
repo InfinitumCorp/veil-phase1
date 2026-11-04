@@ -4,11 +4,15 @@
 # build machine (they must be generated with `git format-patch` from real
 # commits so they apply cleanly). Planned first patches, in order:
 #
-#   0001  [branding]  VEIL name, icons and update URL in browser/branding/veil
-#   0002  [chrome]    Register about:veil-home pages from veil-chrome
-#   0003  [workspace] Launch anonymous and authenticated profiles as separate processes
-#   0004  [workspace] Workspace frame colour and label in the toolbar
-#   0005  [update]    Point the updater at VEIL channels and VEIL MAR keys
+#   0001  [branding] VEIL name, icons and update URL in browser/branding/veil
+#   0002  [chrome]   Register about:veil-home from veil-chrome, with its parent
+#                    actor answering the start page's bridge messages and
+#                    handling Sign In via src/VeilSignIn.sys.mjs
+#   0003  [network]  Install src/VeilAnonymityGuard.sys.mjs at startup: VEIL
+#                    goes offline if any setting would let traffic bypass Tor
+#   0004  [network]  Remove every UI path that turns Tor off or adds a direct
+#                    connection (one always-anonymous workspace, no switching)
+#   0005  [update]   Point the updater at VEIL channels and VEIL MAR keys
 #
-# None of these may change what web content can observe in the anonymous
-# workspace; veil-qa's fingerprint diff gates every build on that.
+# None of these may change what web content can observe; veil-qa's
+# fingerprint diff against stock Tor Browser gates every build on that.

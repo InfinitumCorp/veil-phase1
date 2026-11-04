@@ -11,10 +11,8 @@
   --focus: #1f5fd6;
   --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
-/* The one coloured element: a small workspace marker, so the two
-   workspaces can never be mistaken for each other. */
-:root[data-workspace="anonymous"] { --accent: #5b3fd1; }
-:root[data-workspace="authenticated"] { --accent: #0f7b6c; }
+/* The one coloured element: the small dot beside "Anonymous". */
+:root { --accent: #5b3fd1; }
 @media (prefers-contrast: more) { :root { --ink-quiet: var(--ink); --rule: #9a9aa3; } }
 
 * { box-sizing: border-box; }
@@ -36,6 +34,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: inline-flex; align-items: center; height: 52px; flex: none;
   font-size: 19px; letter-spacing: -0.04em; color: var(--ink); white-space: nowrap;
 }
+/* "Sign In", top right: a word in the site's navigation style, darker
+   than the app names so it reads as the page's one action. */
+.signin {
+  position: relative; padding: 8px 0; font-size: 13px; color: var(--ink);
+  text-decoration: none; white-space: nowrap; flex: none; cursor: pointer;
+}
+.signin::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
+}
+.signin:hover::after, .signin:focus-visible::after { transform: scaleX(1); }
+.signin[hidden] { display: none; }
+
 /* Workspace label, centred just under the search box. */
 .workspace-strip { display: flex; justify-content: center; margin-top: 16px; }
 .workspace {
@@ -96,7 +107,7 @@ main {
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #b5b5bd; }
 .status[data-state="connected"] .dot { background: #1f9d55; }
 .status[data-state="connecting"] .dot { background: #d29a00; }
-.status[data-state="error"] .dot { background: #d1342f; }
+.status[data-state="error"] .dot, .status[data-state="blocked"] .dot { background: #d1342f; }
 
 .bookmarks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 32px; }
 .bookmark {

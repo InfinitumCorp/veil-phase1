@@ -25,7 +25,7 @@
   },
   "notes": [
     "update.veil.invalid is a placeholder until the update domain and its onion service exist.",
-    "Update checks always go over Tor, in both workspaces.",
+    "Update checks always go over Tor.",
     "MAR files are signed for Mozilla's updater with each channel's NSS certificate; release manifests are signed separately with the Ed25519 manifest key so anyone can check published hashes before rollout.",
     "rollout_hold_hours is the minimum time between publishing a release manifest and serving the update, so independent builders can compare hashes first."
   ]

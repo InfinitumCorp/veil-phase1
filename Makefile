@@ -13,7 +13,7 @@ lint:
 	bash -n veil-build/build.sh
 
 ## Build a local preview of the dashboards, signed with a throwaway dev key.
-## Open $(WORK)/preview/anonymous/home.html or authenticated/home.html.
+## Open $(WORK)/preview/home/home.html.
 preview:
 	rm -rf $(WORK)/preview && mkdir -p $(WORK)/dev-keys $(WORK)/dev-trust
 	cp -r veil-chrome/src $(WORK)/preview

@@ -56,21 +56,23 @@ def test_every_page_has_locked_down_csp(root):
             assert action in ALLOWED_FORM_ACTIONS, f"{page.name}: unexpected form-action {action}"
 
 
-def test_anonymous_page_has_no_launcher_or_account_features(root):
-    html = (chrome_src(root) / "anonymous" / "home.html").read_text()
-    js = (chrome_src(root) / "anonymous" / "home.js").read_text()
-    # Features, not words: the page may say "no wallet", but must not load
-    # the app registry, render a launcher, or link to Infinitum products.
-    assert "registry.js" not in html
-    assert 'id="launcher"' not in html
-    assert "VEIL_REGISTRY" not in js
-    assert "infinitum-corporation" not in html + js
+def test_one_always_anonymous_page(root):
+    pages = sorted(p.relative_to(chrome_src(root)).as_posix() for p in chrome_src(root).rglob("*.html"))
+    assert pages == ["home/home.html"]
+    html = (chrome_src(root) / "home" / "home.html").read_text()
+    js = (chrome_src(root) / "home" / "home.js").read_text()
+    bridge = (chrome_src(root) / "shared" / "bridge.js").read_text()
+    # No way to leave Tor from the start page.
+    for text in ("SwitchWorkspace", "not anonymous", "direct connection to", "switch to direct"):
+        assert text not in html + js + bridge, text
 
 
-def test_authenticated_page_never_claims_anonymity(root):
-    html = (chrome_src(root) / "authenticated" / "home.html").read_text().lower()
-    assert "not anonymous" in html
-    assert "you are anonymous" not in html
+def test_sign_in_address_never_comes_from_the_page(root):
+    html = (chrome_src(root) / "home" / "home.html").read_text()
+    m = re.search(r'<a class="signin"[^>]*>', html)
+    assert m and "href" not in m.group(0)
+    js = (chrome_src(root) / "home" / "home.js").read_text()
+    assert 'VeilBridge.send("VEIL:OpenSignIn")' in js  # no URL argument
 
 
 # ---- registry signing ---------------------------------------------------
@@ -124,6 +126,25 @@ def test_bad_app_mark_is_refused():
     assert registry_tool.validate(bad)
 
 
+def test_registry_apps_must_be_alphabetical():
+    apps = [{"id": i, "name": n, "summary": "s", "url": "https://x.example"}
+            for i, n in (("b", "+SPCTR"), ("a", "FABRIC"))]
+    assert any("alphabetical" in e for e in registry_tool.validate({"schema": 1, "version": 1, "apps": apps}))
+    assert registry_tool.validate({"schema": 1, "version": 1, "apps": apps[::-1]}) == []
+
+
+def test_sort_ignores_symbols_and_reads_ae_as_ae():
+    names = ["+SPCTR™", "ÆTHER™", "/CNDCTR/™", "E(O)N™"]
+    assert sorted(names, key=registry_tool.sort_key) == ["ÆTHER™", "/CNDCTR/™", "E(O)N™", "+SPCTR™"]
+
+
+@pytest.mark.parametrize("url", ["http://id.example", "javascript:alert(1)", "https://id.example/\"x"])
+def test_unsafe_sign_in_url_is_refused(url):
+    reg = {"schema": 1, "version": 1, "signin": {"label": "Sign In", "url": url},
+           "apps": [{"id": "x", "name": "X", "summary": "s", "url": "https://x.example"}]}
+    assert any("signin.url" in e for e in registry_tool.validate(reg))
+
+
 def test_unsafe_registry_urls_are_refused():
     bad = {"schema": 1, "version": 1, "apps": [
         {"id": "x", "name": "X", "summary": "s", "url": "javascript:alert(1)"}]}
@@ -146,11 +167,11 @@ def _browser_path():
 
 
 @pytest.mark.skipif(_browser_path() is None, reason="no headless Chrome/Chromium available")
-@pytest.mark.parametrize("workspace", ["anonymous", "authenticated"])
-def test_dashboard_makes_no_network_requests(signed_registry, root, tmp_path, workspace):
+def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
     from playwright.sync_api import sync_playwright
 
     reg, keys, _ = signed_registry
+    data = json.loads(reg.read_text())
     site = tmp_path / "site"
     shutil.copytree(chrome_src(root), site)
     registry_tool.cmd_build(reg, keys, site / "generated" / "registry.js")
@@ -161,15 +182,23 @@ def test_dashboard_makes_no_network_requests(signed_registry, root, tmp_path, wo
         page = browser.new_page()
         page.on("request", lambda r: requests.append(r.url))
         page.on("pageerror", lambda e: errors.append(str(e)))
-        page.goto((site / workspace / "home.html").as_uri())
+        page.goto((site / "home" / "home.html").as_uri())
         page.wait_for_load_state("networkidle")
         status = page.text_content("#tor-status-text")
-        tiles = page.locator("#launcher .app-link").count() if workspace == "authenticated" else 0
+        names = page.locator("#launcher .app-link").all_text_contents()
+        signin_text = page.text_content("#signin")
+        signin_href = page.get_attribute("#signin", "href")
+        signin_visible = page.is_visible("#signin")
+        signin_right = page.evaluate(
+            "document.querySelector('#signin').getBoundingClientRect().right > innerWidth - 40")
+        label = page.text_content("#workspace")
         browser.close()
 
     remote = [u for u in requests if not u.startswith("file://")]
-    assert remote == [], f"{workspace} dashboard made network requests: {remote}"
+    assert remote == [], f"start page made network requests: {remote}"
     assert errors == [], errors
     assert "Preview mode" in status
-    if workspace == "authenticated":
-        assert tiles == len(json.loads(reg.read_text())["apps"])
+    assert names == sorted((a["name"] for a in data["apps"]), key=registry_tool.sort_key)
+    assert signin_text == "Sign In" and signin_visible and signin_right
+    assert signin_href == data["signin"]["url"]
+    assert label == "Anonymous"

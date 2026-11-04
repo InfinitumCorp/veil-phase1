@@ -32,9 +32,18 @@ enforces this and CI refuses a series that fails it.
 
 ## Hard rule
 
-No patch may change anything web content in the **anonymous** workspace can
-observe. If a change would, it does not ship; raise it with the security
-engineer instead.
+VEIL is always anonymous: no patch may add a way for traffic to leave
+without Tor, and no patch may change anything web content can observe. If a
+change would, it does not ship; raise it with the security engineer instead.
+
+## Browser modules (`src/`)
+
+| Module | Installed by | Does |
+| --- | --- | --- |
+| `VeilAnonymityGuard.sys.mjs` | 0003 | Checks Tor proxy settings at startup and on every change; goes offline if any would let traffic bypass Tor |
+| `VeilSignIn.sys.mjs` | 0002 | Opens Cumulus://ID sign-in from the signed app list in a new tab; tracks signed-in state for the start page |
+
+Both are tested under Node by `veil-qa/tests/js/`.
 
 ## Commands
 

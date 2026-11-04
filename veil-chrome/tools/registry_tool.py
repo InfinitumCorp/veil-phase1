@@ -18,6 +18,7 @@ import base64
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 from cryptography.exceptions import InvalidSignature
@@ -32,12 +33,37 @@ def canonical(obj) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
+def sort_key(name: str) -> str:
+    """Alphabetical key for app names: letters and digits only, so symbols
+    such as + / ( ) and trademark signs are ignored; Æ sorts as AE.
+    home.js uses the same rule."""
+    s = name.replace("Æ", "AE").replace("æ", "ae")
+    s = unicodedata.normalize("NFKD", s)
+    return re.sub(r"[^0-9A-Za-z]", "", s).casefold()
+
+
+def plain_https(url) -> bool:
+    return isinstance(url, str) and url.startswith("https://") and not any(c in url for c in "\"'<> ")
+
+
 def validate(reg: dict) -> list[str]:
     errors = []
     if reg.get("schema") != 1:
         errors.append("schema must be 1")
     if not isinstance(reg.get("version"), int) or reg["version"] < 1:
         errors.append("version must be a positive integer")
+    extra_top = set(reg) - {"schema", "version", "signin", "apps"}
+    if extra_top:
+        errors.append(f"unknown top-level fields: {sorted(extra_top)}")
+    signin = reg.get("signin")
+    if signin is not None:
+        if not isinstance(signin, dict) or set(signin) - {"label", "url", "note"}:
+            errors.append("signin must be an object with label, url and optional note")
+        else:
+            if not isinstance(signin.get("label"), str) or not 1 <= len(signin["label"].strip()) <= 24:
+                errors.append("signin.label must be 1-24 characters")
+            if not plain_https(signin.get("url")):
+                errors.append("signin.url must be a plain https:// URL")
     apps = reg.get("apps")
     if not isinstance(apps, list) or not apps:
         return errors + ["apps must be a non-empty list"]
@@ -62,9 +88,11 @@ def validate(reg: dict) -> list[str]:
         mark = app.get("mark")
         if mark is not None and (not isinstance(mark, str) or not 1 <= len(mark) <= 3 or not mark.strip()):
             errors.append(f"{where}.mark must be 1-3 characters")
-        url = app.get("url")
-        if not isinstance(url, str) or not url.startswith("https://") or any(c in url for c in "\"'<> "):
+        if not plain_https(app.get("url")):
             errors.append(f"{where}.url must be a plain https:// URL")
+    names = [a.get("name", "") for a in apps if isinstance(a, dict) and isinstance(a.get("name"), str)]
+    if names != sorted(names, key=sort_key):
+        errors.append("apps must be in alphabetical order by name (symbols ignored)")
     return errors
 
 

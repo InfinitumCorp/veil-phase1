@@ -7,7 +7,7 @@ every build. They are the Gate 2 checks in the Phase I plan.
 | --- | --- | --- |
 | Fingerprint diff | `fingerprint_diff.py` + `collector.html` | Every collected signal identical to the same-version stock Tor Browser |
 | Leak check | `leak_check.md` (procedure; automation to follow in stage 2) | No packet leaves the machine except to the Tor guard during a scripted browsing session |
-| Workspace isolation | to be written in stage 2 alongside patch 0003 | A cookie, storage entry, cache entry or download set in one workspace is never visible in the other |
+| Anonymity guard | `veil-qa/tests/js/guard.test.mjs` (logic), leak check step 7 (built browser) | VEIL goes offline whenever a setting would let traffic bypass Tor |
 
 `collector.html` is also exercised in plain Chrome by
 `tests/test_collector.py`, so a broken collector is caught without a VEIL
