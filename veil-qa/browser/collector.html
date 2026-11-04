@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VEIL fingerprint collector</title>
+<!-- Served from localhost by fingerprint_diff.py. Collects the signals a
+     tracking site would read, so VEIL's anonymous workspace can be compared
+     with stock Tor Browser. Any difference fails the build. -->
+</head>
+<body>
+<pre id="out">collecting…</pre>
+<script>
+"use strict";
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function safe(fn) { try { return fn(); } catch (e) { return "error:" + e.name; } }
+
+async function collect() {
+  const n = navigator;
+  const fp = {
+    userAgent: n.userAgent,
+    platform: n.platform,
+    languages: safe(() => [...n.languages]),
+    hardwareConcurrency: n.hardwareConcurrency,
+    deviceMemory: n.deviceMemory ?? null,
+    maxTouchPoints: n.maxTouchPoints,
+    doNotTrack: n.doNotTrack,
+    webdriverHidden: n.webdriver === true ? "exposed" : "hidden",
+    pdfViewerEnabled: n.pdfViewerEnabled ?? null,
+    plugins: safe(() => [...n.plugins].map(p => p.name)),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneOffset: new Date(2026, 0, 1).getTimezoneOffset(),
+    locale: Intl.DateTimeFormat().resolvedOptions().locale,
+    screen: [screen.width, screen.height, screen.availWidth, screen.availHeight, screen.colorDepth],
+    window: [innerWidth, innerHeight, outerWidth - innerWidth, outerHeight - innerHeight],
+    devicePixelRatio: devicePixelRatio,
+    apis: {
+      webrtc: typeof RTCPeerConnection,
+      bluetooth: typeof n.bluetooth,
+      usb: typeof n.usb,
+      battery: typeof n.getBattery,
+      gamepads: typeof n.getGamepads,
+      serviceWorker: typeof n.serviceWorker,
+      webgpu: typeof n.gpu,
+      speech: typeof window.speechSynthesis,
+      sharedArrayBuffer: typeof SharedArrayBuffer,
+    },
+    mediaQueries: Object.fromEntries([
+      "(prefers-color-scheme: dark)", "(prefers-reduced-motion: reduce)",
+      "(prefers-contrast: more)", "(pointer: fine)", "(hover: hover)", "(forced-colors: active)",
+    ].map(q => [q, matchMedia(q).matches])),
+  };
+
+  fp.canvas = await safe(async () => {
+    const c = document.createElement("canvas");
+    c.width = 240; c.height = 60;
+    const g = c.getContext("2d");
+    g.textBaseline = "top"; g.font = "16px sans-serif";
+    g.fillStyle = "#f60"; g.fillRect(10, 10, 100, 30);
+    g.fillStyle = "#069"; g.fillText("VEIL fingerprint ✓ 2026", 4, 20);
+    return sha256(c.toDataURL());
+  });
+
+  fp.webgl = safe(() => {
+    const gl = document.createElement("canvas").getContext("webgl");
+    if (!gl) return "unavailable";
+    return [gl.getParameter(gl.VENDOR), gl.getParameter(gl.RENDERER), gl.getParameter(gl.VERSION)];
+  });
+
+  fp.fonts = safe(() => {
+    const probe = ["Arial", "Helvetica", "Times New Roman", "Courier New", "Verdana",
+                   "Georgia", "Comic Sans MS", "Segoe UI", "Roboto", "Ubuntu", "DejaVu Sans", "Noto Sans"];
+    const s = document.createElement("span");
+    s.textContent = "mmmmmmmmmmlli10OO";
+    s.style.cssText = "position:absolute;left:-9999px;font-size:72px";
+    document.body.append(s);
+    const width = f => { s.style.fontFamily = f; return s.getBoundingClientRect().width; };
+    const base = width("monospace");
+    const found = probe.filter(f => width(`'${f}', monospace`) !== base);
+    s.remove();
+    return found;
+  });
+
+  fp.timerResolutionMs = safe(() => {
+    let min = Infinity, last = performance.now();
+    for (let i = 0; i < 20000; i++) {
+      const t = performance.now();
+      if (t > last) { min = Math.min(min, t - last); last = t; }
+    }
+    return Math.round(min * 1000) / 1000;
+  });
+
+  return fp;
+}
+
+collect().then(fp => {
+  const json = JSON.stringify(fp, null, 2);
+  document.getElementById("out").textContent = json;
+  window.__veilFingerprint = fp;
+  document.title = "done";
+});
+</script>
+</body>
+</html>

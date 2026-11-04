@@ -1,0 +1,30 @@
+name: VEIL checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    # Checks that need no browser build: patch lint, build-script guards,
+    # dashboard network test, registry and update signing tests.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: |
+          pip install pytest cryptography playwright
+      - name: Run checks
+        run: make test
+
+  # Stage 1 onward: the reproducible build itself runs on VEIL's own build
+  # hardware (see the build plan), not on hosted runners. That pipeline calls
+  # veil-build/bootstrap.sh, build.sh, compare_builds.py against the second
+  # builder, and veil-qa/browser/fingerprint_diff.py, and blocks the release
+  # on any failure.

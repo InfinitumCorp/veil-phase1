@@ -1,0 +1,32 @@
+{
+  "schema": 1,
+  "channels": {
+    "release": {
+      "description": "Stable builds for everyone",
+      "manifest_key": "keys/release.pub",
+      "mar_cert": "certs/release-mar.der",
+      "update_url": "https://update.veil.invalid/release/%BUILD_TARGET%/%VERSION%/update.xml",
+      "rollout_hold_hours": 24
+    },
+    "alpha": {
+      "description": "Early builds for testers",
+      "manifest_key": "keys/alpha.pub",
+      "mar_cert": "certs/alpha-mar.der",
+      "update_url": "https://update.veil.invalid/alpha/%BUILD_TARGET%/%VERSION%/update.xml",
+      "rollout_hold_hours": 0
+    },
+    "nightly": {
+      "description": "Automated builds from the main branch",
+      "manifest_key": "keys/nightly.pub",
+      "mar_cert": "certs/nightly-mar.der",
+      "update_url": "https://update.veil.invalid/nightly/%BUILD_TARGET%/%VERSION%/update.xml",
+      "rollout_hold_hours": 0
+    }
+  },
+  "notes": [
+    "update.veil.invalid is a placeholder until the update domain and its onion service exist.",
+    "Update checks always go over Tor, in both workspaces.",
+    "MAR files are signed for Mozilla's updater with each channel's NSS certificate; release manifests are signed separately with the Ed25519 manifest key so anyone can check published hashes before rollout.",
+    "rollout_hold_hours is the minimum time between publishing a release manifest and serving the update, so independent builders can compare hashes first."
+  ]
+}

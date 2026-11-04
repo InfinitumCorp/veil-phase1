@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" data-workspace="anonymous">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Nothing on this page may load from the network. The only external
+       action is a search the user submits themselves. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; form-action https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion; base-uri 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>VEIL — Anonymous</title>
+  <link rel="stylesheet" href="../shared/veil.css">
+</head>
+<body>
+  <div class="workspace-bar" role="region" aria-label="Workspace">
+    <span class="workspace-label">Anonymous workspace</span>
+    <button type="button" id="switch-workspace">Open signed-in workspace</button>
+  </div>
+
+  <main id="main">
+    <h1>Browse privately</h1>
+    <p class="lede">Every connection goes over Tor. No account, no AI, no wallet, no sync.</p>
+
+    <form class="search" role="search" method="get"
+          action="https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/">
+      <input id="q" name="q" type="search" placeholder="Search with DuckDuckGo over Tor"
+             autocomplete="off" spellcheck="false" aria-label="Search">
+      <button class="primary" type="submit">Search</button>
+    </form>
+
+    <div class="status" id="tor-status" data-state="unknown" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="tor-status-text">Checking Tor connection…</span>
+      <span class="actions">
+        <button type="button" id="new-circuit" title="New route for the current site">New circuit</button>
+        <button type="button" id="new-identity" title="Close all tabs and start fresh">New identity</button>
+      </span>
+    </div>
+
+    <h2>Bookmarks</h2>
+    <div class="grid" id="bookmarks" aria-live="polite"></div>
+
+    <p class="note">This page is part of the browser and makes no network requests.
+      Switching workspaces opens a separate window; nothing moves across unless you choose to move it.</p>
+  </main>
+
+  <footer>VEIL · Tor-first · Free forever</footer>
+  <script src="../shared/bridge.js"></script>
+  <script src="home.js"></script>
+</body>
+</html>

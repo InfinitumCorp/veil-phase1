@@ -1,0 +1,14 @@
+# VEIL patch series, applied in order on top of the pinned tor-browser tag.
+#
+# Empty until the first patches are cut against the confirmed 16.0 tag on a
+# build machine (they must be generated with `git format-patch` from real
+# commits so they apply cleanly). Planned first patches, in order:
+#
+#   0001  [branding]  VEIL name, icons and update URL in browser/branding/veil
+#   0002  [chrome]    Register about:veil-home pages from veil-chrome
+#   0003  [workspace] Launch anonymous and authenticated profiles as separate processes
+#   0004  [workspace] Workspace frame colour and label in the toolbar
+#   0005  [update]    Point the updater at VEIL channels and VEIL MAR keys
+#
+# None of these may change what web content can observe in the anonymous
+# workspace; veil-qa's fingerprint diff gates every build on that.
