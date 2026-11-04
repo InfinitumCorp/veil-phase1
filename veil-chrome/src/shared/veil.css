@@ -1,13 +1,15 @@
 /* VEIL start pages: white, quiet, nothing loaded from the network.
-   System fonts only; app icons are drawn in CSS, never fetched. */
+   Typography follows infinitum-corporation.vercel.app: Helvetica Neue at a
+   regular weight with tight tracking on headlines. It is a system font, so
+   nothing is downloaded; app icons are drawn in CSS, never fetched. */
 :root {
   --bg: #ffffff;
-  --ink: #111114;
+  --ink: #111820;
   --ink-quiet: #6b6b74;
   --rule: #e8e8ec;
   --hover: #f3f3f5;
   --focus: #1f5fd6;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 /* The one coloured element: a small workspace marker, so the two
    workspaces can never be mistaken for each other. */
@@ -31,7 +33,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .workspace {
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: 13px; font-weight: 600; color: var(--ink);
+  font-size: 12px; font-weight: 400; color: var(--ink);
   white-space: nowrap; flex: none;
 }
 .workspace::before {
@@ -47,36 +49,45 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .app:hover, .app:focus-visible { background: var(--hover); }
 .app-icon {
-  width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
-  background: var(--ink); color: #fff; font-size: 9.5px; font-weight: 700; letter-spacing: .02em;
+  width: 22px; height: 22px; border-radius: 3px; display: grid; place-items: center;
+  background: var(--ink); color: #fff; font-size: 9.5px; font-weight: 500; letter-spacing: .02em;
 }
 .divider { width: 1px; height: 20px; background: var(--rule); margin: 0 6px; }
 
 .text-button {
-  border: 0; background: none; padding: 6px 10px; border-radius: 8px;
-  font-size: 13px; color: var(--ink-quiet); white-space: nowrap; flex: none;
+  border: 0; background: none; padding: 6px 10px; border-radius: 2px;
+  font-size: 12px; color: var(--ink-quiet); white-space: nowrap; flex: none;
 }
 .text-button:hover { background: var(--hover); color: var(--ink); }
+/* Outlined button, as in the site's "Let's talk". */
+.outline-button {
+  border: 1px solid var(--ink); background: #fff; padding: 7px 14px; border-radius: 2px;
+  font-size: 12px; color: var(--ink); white-space: nowrap; flex: none;
+}
+.outline-button:hover { background: var(--ink); color: #fff; }
 
 /* ---- centre --------------------------------------------------------- */
 main {
   flex: 1; width: min(620px, 100% - 32px); margin: 0 auto;
-  display: flex; flex-direction: column; justify-content: center; padding: 48px 0 96px;
+  display: flex; flex-direction: column; justify-content: center; padding: 48px 0 80px;
 }
-.wordmark {
-  text-align: center; font-size: 34px; font-weight: 700; letter-spacing: .14em;
-  margin: 0 0 28px;
+.eyebrow { font-size: 13px; color: var(--ink); margin: 0 0 14px; }
+.headline {
+  font-size: clamp(40px, 7vw, 64px); font-weight: 400; line-height: 1.02;
+  letter-spacing: -0.06em; margin: 0 0 18px;
 }
+.headline em { font-style: italic; display: block; }
+.headline span { display: block; }
+.subtext { font-size: 15px; letter-spacing: -0.01em; color: var(--ink-quiet); margin: 0 0 32px; max-width: 34em; }
 .search input {
-  width: 100%; font: inherit; font-size: 16px; padding: 14px 20px;
-  border: 1px solid var(--rule); border-radius: 999px; background: #fff; color: var(--ink);
-  box-shadow: 0 1px 6px rgba(17, 17, 20, .06);
+  width: 100%; font: inherit; font-size: 16px; padding: 14px 16px;
+  border: 1px solid var(--rule); border-radius: 2px; background: #fff; color: var(--ink);
 }
-.search input:focus { outline: none; border-color: #c9c9d1; box-shadow: 0 1px 10px rgba(17, 17, 20, .10); }
+.search input:focus { outline: none; border-color: var(--ink); }
 
 .status {
-  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
-  gap: 6px 14px; margin-top: 18px; font-size: 13px; color: var(--ink-quiet);
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 6px 14px; margin-top: 14px; font-size: 12px; color: var(--ink-quiet);
 }
 .status-line { display: inline-flex; align-items: center; gap: 7px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #b5b5bd; }
@@ -84,15 +95,20 @@ main {
 .status[data-state="connecting"] .dot { background: #d29a00; }
 .status[data-state="error"] .dot { background: #d1342f; }
 
-.bookmarks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 36px; }
+.bookmarks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 32px; }
 .bookmark {
-  font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--rule);
+  font-size: 12px; padding: 6px 12px; border-radius: 2px; border: 1px solid var(--rule);
   color: var(--ink); text-decoration: none; max-width: 200px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bookmark:hover { background: var(--hover); }
 
-footer { padding: 14px; font-size: 12px; color: var(--ink-quiet); text-align: center; }
+footer {
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px;
+  margin: 0 14px; padding: 14px 0; border-top: 1px solid var(--rule);
+  font-size: 12px; color: var(--ink);
+}
+footer .quiet { color: var(--ink-quiet); }
 
 @media (max-width: 560px) {
   .topbar { padding: 0 8px; gap: 6px; }
@@ -100,5 +116,5 @@ footer { padding: 14px; font-size: 12px; color: var(--ink-quiet); text-align: ce
   .apps { flex: 1; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
   .divider { margin: 0 2px; }
   .app { flex: none; }
-  .wordmark { font-size: 28px; }
+  footer { justify-content: flex-start; }
 }
