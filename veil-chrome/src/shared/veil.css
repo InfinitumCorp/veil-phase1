@@ -28,31 +28,33 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---- top bar -------------------------------------------------------- */
 .topbar {
-  display: flex; align-items: center; gap: 12px;
-  height: 52px; padding: 0 14px; border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px;
+  min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--rule);
 }
 .workspace {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 12px; font-weight: 400; color: var(--ink);
-  white-space: nowrap; flex: none;
+  white-space: nowrap; flex: none; height: 52px;
 }
 .workspace::before {
   content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none;
 }
 .spacer { flex: 1; }
 
-/* App buttons, like browser extension icons. */
-.apps { display: flex; align-items: center; gap: 2px; min-width: 0; }
-.app {
-  width: 32px; height: 32px; display: grid; place-items: center;
-  border-radius: 8px; text-decoration: none; color: inherit;
+/* App names, styled like the Infinitum site navigation: 13px regular
+   words in muted slate, darkening with a 2px underline on hover. */
+.apps { display: flex; align-items: center; gap: 22px; min-width: 0; }
+.app-link {
+  position: relative; padding: 8px 0; font-size: 13px; color: #49545e;
+  text-decoration: none; white-space: nowrap; flex: none;
 }
-.app:hover, .app:focus-visible { background: var(--hover); }
-.app-icon {
-  width: 22px; height: 22px; border-radius: 3px; display: grid; place-items: center;
-  background: var(--ink); color: #fff; font-size: 9.5px; font-weight: 500; letter-spacing: .02em;
+.app-link::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
 }
-.divider { width: 1px; height: 20px; background: var(--rule); margin: 0 6px; }
+.app-link:hover, .app-link:focus-visible { color: var(--ink); }
+.app-link:hover::after, .app-link:focus-visible::after { transform: scaleX(1); }
+.divider { width: 1px; height: 20px; background: var(--rule); margin: 0 4px; flex: none; }
 
 .text-button {
   border: 0; background: none; padding: 6px 10px; border-radius: 2px;
@@ -76,8 +78,6 @@ main {
   font-size: clamp(40px, 7vw, 64px); font-weight: 400; line-height: 1.02;
   letter-spacing: -0.06em; margin: 0 0 18px;
 }
-.headline em { font-style: italic; display: block; }
-.headline span { display: block; }
 .subtext { font-size: 15px; letter-spacing: -0.01em; color: var(--ink-quiet); margin: 0 0 32px; max-width: 34em; }
 .search input {
   width: 100%; font: inherit; font-size: 16px; padding: 14px 16px;
@@ -110,11 +110,15 @@ footer {
 }
 footer .quiet { color: var(--ink-quiet); }
 
+/* Too narrow for the names beside the label: give them their own row. */
+@media (max-width: 1240px) {
+  .apps { order: 3; flex-basis: 100%; padding-bottom: 6px; }
+  .divider { display: none; }
+}
+
 @media (max-width: 560px) {
   .topbar { padding: 0 8px; gap: 6px; }
-  .spacer { display: none; }
-  .apps { flex: 1; overflow-x: auto; scrollbar-width: none; justify-content: flex-start; }
+  .apps { overflow-x: auto; scrollbar-width: none; gap: 18px; }
   .divider { margin: 0 2px; }
-  .app { flex: none; }
   footer { justify-content: flex-start; }
 }

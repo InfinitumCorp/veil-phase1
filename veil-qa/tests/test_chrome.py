@@ -164,7 +164,7 @@ def test_dashboard_makes_no_network_requests(signed_registry, root, tmp_path, wo
         page.goto((site / workspace / "home.html").as_uri())
         page.wait_for_load_state("networkidle")
         status = page.text_content("#tor-status-text")
-        tiles = page.locator("#launcher .app").count() if workspace == "authenticated" else 0
+        tiles = page.locator("#launcher .app-link").count() if workspace == "authenticated" else 0
         browser.close()
 
     remote = [u for u in requests if not u.startswith("file://")]

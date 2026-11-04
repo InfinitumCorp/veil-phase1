@@ -1,15 +1,15 @@
 {
   "schema": 1,
-  "version": 2,
+  "version": 3,
   "apps": [
-    { "id": "scalvs", "mark": "SC", "name": "SCALVS.ai", "summary": "AI intelligence and research", "url": "https://infinitum-corporation.vercel.app/products/scalus" },
-    { "id": "cndctr", "mark": "CN", "name": "/CNDCTR/", "summary": "Automation and agent workflows", "url": "https://infinitum-corporation.vercel.app/products/cndctr" },
-    { "id": "cumulus", "mark": "CU", "name": "Cumulus://Cloud", "summary": "Encrypted storage and mail", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange" },
-    { "id": "fabric", "mark": "FA", "name": "FABRIC", "summary": "Encrypted messaging, voice and video", "url": "https://infinitum-corporation.vercel.app/products/fabric" },
-    { "id": "aether", "mark": "Æ", "name": "ÆTHER", "summary": "Mesh connectivity", "url": "https://infinitum-corporation.vercel.app/products/aether" },
-    { "id": "metatron", "mark": "M", "name": "METATRON¹⁰⁰", "summary": "Financial analytics", "url": "https://infinitum-corporation.vercel.app/products/metatron" },
-    { "id": "spectre", "mark": "SP", "name": "+SPCTR", "summary": "AI-powered CRM", "url": "https://infinitum-corporation.vercel.app/products/spectre" },
-    { "id": "eon", "mark": "EO", "name": "E(O)N", "summary": "Device setup and management", "url": "https://infinitum-corporation.vercel.app/products/eon" },
-    { "id": "firmament", "mark": "FN", "name": "Firmament Network", "summary": "Settlement and on-chain records", "url": "https://infinitum-corporation.vercel.app/products/firmament-network" }
+    {"id": "scalvs", "name": "SCALVS.ai™", "summary": "AI intelligence and research", "url": "https://infinitum-corporation.vercel.app/products/scalus"},
+    {"id": "cndctr", "name": "/CNDCTR/™", "summary": "Automation and agent workflows", "url": "https://infinitum-corporation.vercel.app/products/cndctr"},
+    {"id": "cumulus", "name": "Cumulus://Cloud™", "summary": "Encrypted storage and mail", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange"},
+    {"id": "fabric", "name": "FABRIC™", "summary": "Encrypted messaging, voice and video", "url": "https://infinitum-corporation.vercel.app/products/fabric"},
+    {"id": "aether", "name": "ÆTHER™", "summary": "Mesh connectivity", "url": "https://infinitum-corporation.vercel.app/products/aether"},
+    {"id": "metatron", "name": "METATRON¹⁰⁰™", "summary": "Financial analytics", "url": "https://infinitum-corporation.vercel.app/products/metatron"},
+    {"id": "spectre", "name": "+SPCTR™", "summary": "AI-powered CRM", "url": "https://infinitum-corporation.vercel.app/products/spectre"},
+    {"id": "eon", "name": "E(O)N™", "summary": "Device setup and management", "url": "https://infinitum-corporation.vercel.app/products/eon"},
+    {"id": "firmament", "name": "Firmament Network™", "summary": "Settlement and on-chain records", "url": "https://infinitum-corporation.vercel.app/products/firmament-network"}
   ]
 }

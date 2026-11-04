@@ -17,23 +17,19 @@
     statusText.textContent = known ? STATUS_TEXT[state] : "Connection status unknown";
   });
 
-  // App buttons in the top bar, from the bundled, signed registry.
+  // App names in the top bar, styled like the Infinitum site navigation,
+  // from the bundled, signed registry.
   const launcher = document.getElementById("launcher");
   const apps = (typeof VEIL_REGISTRY === "object" && Array.isArray(VEIL_REGISTRY.apps))
     ? VEIL_REGISTRY.apps : [];
   for (const app of apps) {
     if (typeof app.url !== "string" || !app.url.startsWith("https://")) continue;
     const a = document.createElement("a");
-    a.className = "app";
+    a.className = "app-link";
     a.href = app.url;
     a.rel = "noreferrer";
-    a.title = `${app.name} · ${app.summary}`;
-    a.setAttribute("aria-label", app.name);
-    const icon = document.createElement("span");
-    icon.className = "app-icon";
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = app.mark || app.name.replace(/[^A-Za-z0-9Æ]/g, "").slice(0, 2);
-    a.append(icon);
+    a.title = app.summary;
+    a.textContent = app.name;
     launcher.append(a);
   }
 
