@@ -31,10 +31,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px;
   min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--rule);
 }
+/* Brand mark, top left, as the Infinitum logo sits on the site. */
+.brand {
+  display: inline-flex; align-items: center; height: 52px; flex: none;
+  font-size: 19px; letter-spacing: -0.04em; color: var(--ink); white-space: nowrap;
+}
+/* Workspace label, centred just under the top bar. */
+.workspace-strip { display: flex; justify-content: center; padding: 14px 16px 0; }
 .workspace {
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: 12px; font-weight: 400; color: var(--ink);
-  white-space: nowrap; flex: none; height: 52px;
+  font-size: 12px; font-weight: 400; color: var(--ink); white-space: nowrap;
 }
 .workspace::before {
   content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none;
@@ -73,12 +79,10 @@ main {
   flex: 1; width: min(620px, 100% - 32px); margin: 0 auto;
   display: flex; flex-direction: column; justify-content: center; padding: 48px 0 80px;
 }
-.eyebrow { font-size: 13px; color: var(--ink); margin: 0 0 14px; }
-.headline {
-  font-size: clamp(40px, 7vw, 64px); font-weight: 400; line-height: 1.02;
-  letter-spacing: -0.06em; margin: 0 0 18px;
+.lead {
+  font-size: clamp(20px, 2.6vw, 26px); line-height: 1.25; letter-spacing: -0.03em;
+  color: var(--ink); margin: 0 0 24px; max-width: 26em;
 }
-.subtext { font-size: 15px; letter-spacing: -0.01em; color: var(--ink-quiet); margin: 0 0 32px; max-width: 34em; }
 .search input {
   width: 100%; font: inherit; font-size: 16px; padding: 14px 16px;
   border: 1px solid var(--rule); border-radius: 2px; background: #fff; color: var(--ink);
@@ -111,7 +115,7 @@ footer {
 footer .quiet { color: var(--ink-quiet); }
 
 /* Too narrow for the names beside the label: give them their own row. */
-@media (max-width: 1240px) {
+@media (max-width: 1000px) {
   .apps { order: 3; flex-basis: 100%; padding-bottom: 6px; }
   .divider { display: none; }
 }
