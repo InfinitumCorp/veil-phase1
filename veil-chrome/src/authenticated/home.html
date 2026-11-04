@@ -17,7 +17,6 @@
     <span class="spacer"></span>
     <button type="button" class="outline-button" id="switch-workspace">Anonymous</button>
   </header>
-  <div class="workspace-strip"><span class="workspace" title="Signed in, so not anonymous, even over Tor">Signed in · not anonymous</span></div>
 
   <main id="main">
     <form class="search" role="search" method="get"
@@ -25,6 +24,8 @@
       <input id="q" name="q" type="search" placeholder="Search the web"
              autocomplete="off" aria-label="Search">
     </form>
+
+    <div class="workspace-strip"><span class="workspace" title="Signed in, so not anonymous, even over Tor">Signed in · not anonymous</span></div>
 
     <div class="status" id="tor-status" data-state="unknown" aria-live="polite">
       <span class="status-line"><span class="dot" aria-hidden="true"></span><span id="tor-status-text">Checking connection…</span></span>

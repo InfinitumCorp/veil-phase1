@@ -17,7 +17,6 @@
     <span class="spacer"></span>
     <button type="button" class="outline-button" id="switch-workspace">Signed-in workspace</button>
   </header>
-  <div class="workspace-strip"><span class="workspace" title="Every connection goes over Tor. No account, AI, wallet or sync.">Anonymous</span></div>
 
   <main id="main">
     <form class="search" role="search" method="get"
@@ -25,6 +24,8 @@
       <input id="q" name="q" type="search" placeholder="Search privately over Tor"
              autocomplete="off" spellcheck="false" aria-label="Search">
     </form>
+
+    <div class="workspace-strip"><span class="workspace" title="Every connection goes over Tor. No account, AI, wallet or sync.">Anonymous</span></div>
 
     <div class="status" id="tor-status" data-state="unknown" aria-live="polite">
       <span class="status-line"><span class="dot" aria-hidden="true"></span><span id="tor-status-text">Checking Tor…</span></span>
