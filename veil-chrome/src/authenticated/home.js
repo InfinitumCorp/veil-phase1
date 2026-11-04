@@ -47,9 +47,6 @@
     }
   });
 
-  document.getElementById("switch-workspace").addEventListener("click", () =>
-    VeilBridge.send("VEIL:SwitchWorkspace", { to: "anonymous" }));
-
   VeilBridge.send("VEIL:GetTorStatus");
   VeilBridge.send("VEIL:GetBookmarks");
 })();
