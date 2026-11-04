@@ -47,9 +47,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .spacer { flex: 1; }
 
-/* App names, styled like the Infinitum site navigation: 13px regular
-   words in muted slate, darkening with a 2px underline on hover. */
-.apps { display: flex; align-items: center; gap: 22px; min-width: 0; }
+/* App names along the bottom, above the footer, styled like the Infinitum
+   site navigation: 13px regular words in muted slate, darkening with a 2px
+   underline on hover. */
+.apps {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: 4px 22px; padding: 0 14px 14px;
+}
 .app-link {
   position: relative; padding: 8px 0; font-size: 13px; color: #49545e;
   text-decoration: none; white-space: nowrap; flex: none;
@@ -60,7 +64,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .app-link:hover, .app-link:focus-visible { color: var(--ink); }
 .app-link:hover::after, .app-link:focus-visible::after { transform: scaleX(1); }
-.divider { width: 1px; height: 20px; background: var(--rule); margin: 0 4px; flex: none; }
 
 .text-button {
   border: 0; background: none; padding: 6px 10px; border-radius: 2px;
@@ -110,15 +113,8 @@ footer {
 }
 footer .quiet { color: var(--ink-quiet); }
 
-/* Too narrow for the names beside the label: give them their own row. */
-@media (max-width: 1000px) {
-  .apps { order: 3; flex-basis: 100%; padding-bottom: 6px; }
-  .divider { display: none; }
-}
-
 @media (max-width: 560px) {
   .topbar { padding: 0 8px; gap: 6px; }
-  .apps { overflow-x: auto; scrollbar-width: none; gap: 18px; }
-  .divider { margin: 0 2px; }
+  .apps { gap: 2px 18px; }
   footer { justify-content: flex-start; }
 }
