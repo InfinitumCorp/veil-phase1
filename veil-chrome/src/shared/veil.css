@@ -79,10 +79,6 @@ main {
   flex: 1; width: min(620px, 100% - 32px); margin: 0 auto;
   display: flex; flex-direction: column; justify-content: center; padding: 48px 0 80px;
 }
-.lead {
-  font-size: clamp(20px, 2.6vw, 26px); line-height: 1.25; letter-spacing: -0.03em;
-  color: var(--ink); margin: 0 0 24px; max-width: 26em;
-}
 .search input {
   width: 100%; font: inherit; font-size: 16px; padding: 14px 16px;
   border: 1px solid var(--rule); border-radius: 2px; background: #fff; color: var(--ink);
