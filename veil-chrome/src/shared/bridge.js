@@ -18,6 +18,7 @@ const VeilBridge = (() => {
     "VEIL:NewCircuit",
     "VEIL:GetBookmarks",
     "VEIL:OpenSignIn",
+    "VEIL:OpenAppPanel",
     "VEIL:GetAccount",
   ]);
   const INCOMING = new Set(["VEIL:TorStatus", "VEIL:Bookmarks", "VEIL:Account"]);

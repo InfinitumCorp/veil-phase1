@@ -1,4 +1,4 @@
-"""Runs the browser modules' JavaScript tests (anonymity guard, sign-in) under Node."""
+"""Runs the browser modules' JavaScript tests (anonymity guard, sign-in, app panel) under Node."""
 import shutil
 import subprocess
 
@@ -6,7 +6,7 @@ import pytest
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
-@pytest.mark.parametrize("suite", ["guard.test.mjs", "signin.test.mjs"])
+@pytest.mark.parametrize("suite", ["guard.test.mjs", "signin.test.mjs", "apppanel.test.mjs"])
 def test_browser_modules(root, suite):
     result = subprocess.run(
         ["node", "--test", str(root / "veil-qa" / "tests" / "js" / suite)],

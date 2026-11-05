@@ -42,8 +42,9 @@ change would, it does not ship; raise it with the security engineer instead.
 | --- | --- | --- |
 | `VeilAnonymityGuard.sys.mjs` | 0003 | Checks Tor proxy settings at startup and on every change; goes offline if any would let traffic bypass Tor |
 | `VeilSignIn.sys.mjs` | 0002 | Opens Cumulus://ID sign-in from the signed app list in a new tab; tracks signed-in state for the start page |
+| `VeilAppPanel.sys.mjs` | 0002 | Opens /CNDCTR/ or SCALVS.ai in a side panel next to the current page, like ChatGPT's sidebar; the address comes from the signed app list |
 
-Both are tested under Node by `veil-qa/tests/js/`.
+All are tested under Node by `veil-qa/tests/js/`.
 
 ## Commands
 

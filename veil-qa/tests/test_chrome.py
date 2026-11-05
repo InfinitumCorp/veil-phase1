@@ -75,6 +75,12 @@ def test_sign_in_address_never_comes_from_the_page(root):
     assert 'VeilBridge.send("VEIL:OpenSignIn")' in js  # no URL argument
 
 
+def test_app_panel_message_carries_only_the_app_id(root):
+    js = (chrome_src(root) / "home" / "home.js").read_text()
+    assert 'VeilBridge.send("VEIL:OpenAppPanel", { id: app.id })' in js
+    assert "OpenAppPanel\", { url" not in js
+
+
 # ---- registry signing ---------------------------------------------------
 
 @pytest.fixture

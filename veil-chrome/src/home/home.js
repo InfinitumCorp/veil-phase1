@@ -75,6 +75,16 @@
     a.rel = "noreferrer";
     a.title = app.summary;
     a.textContent = app.name;
+    // Inside VEIL the app opens in the side panel, next to the current page,
+    // like ChatGPT's sidebar; clicking it again closes the panel. Only the
+    // app id is sent: the browser takes the address from its own copy of the
+    // signed registry. Outside VEIL (preview), the link works as a link.
+    a.addEventListener("click", event => {
+      if (VeilBridge.native && typeof app.id === "string") {
+        event.preventDefault();
+        VeilBridge.send("VEIL:OpenAppPanel", { id: app.id });
+      }
+    });
     launcher.append(a);
   }
 
