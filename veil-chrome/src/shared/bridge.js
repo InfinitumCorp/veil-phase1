@@ -6,21 +6,18 @@
  * (design preview, tests) the bridge falls back to a preview mode that never
  * touches the network.
  *
- * Messages are a fixed allow-list: a dashboard can ask for status and
- * request user-visible actions, nothing else.
+ * Messages are a fixed allow-list: the start page can open sign-in and ask
+ * whether the user is signed in, nothing else. Tor status, New identity and
+ * bookmarks live in the browser toolbar, not on the page.
  */
 "use strict";
 
 const VeilBridge = (() => {
   const OUTGOING = new Set([
-    "VEIL:GetTorStatus",
-    "VEIL:NewIdentity",
-    "VEIL:NewCircuit",
-    "VEIL:GetBookmarks",
     "VEIL:OpenSignIn",
     "VEIL:GetAccount",
   ]);
-  const INCOMING = new Set(["VEIL:TorStatus", "VEIL:Bookmarks", "VEIL:Account"]);
+  const INCOMING = new Set(["VEIL:Account"]);
 
   const native =
     typeof RPMSendAsyncMessage === "function" &&
@@ -54,8 +51,6 @@ const VeilBridge = (() => {
   // tested in any browser without a VEIL build.
   function preview(name) {
     queueMicrotask(() => {
-      if (name === "VEIL:GetTorStatus") emit("VEIL:TorStatus", { state: "preview" });
-      if (name === "VEIL:GetBookmarks") emit("VEIL:Bookmarks", { items: [] });
       if (name === "VEIL:GetAccount") emit("VEIL:Account", { signedIn: false });
     });
   }

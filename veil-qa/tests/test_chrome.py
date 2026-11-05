@@ -195,14 +195,12 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto((site / "home" / "home.html").as_uri())
         page.wait_for_load_state("networkidle")
-        status = page.text_content("#tor-status-text")
         names = page.locator("#launcher .app-name").all_text_contents()
         signin_text = page.text_content("#signin")
         signin_href = page.get_attribute("#signin", "href")
         signin_visible = page.is_visible("#signin")
         signin_right = page.evaluate(
             "document.querySelector('#signin').getBoundingClientRect().right > innerWidth - 40")
-        label = page.text_content("#workspace")
         shortcuts = page.eval_on_selector_all(
             "#shortcuts a", "els => els.map(a => [a.textContent, a.getAttribute('href')])")
         top_left = page.evaluate(
@@ -213,6 +211,8 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
             const mid = innerWidth / 2;
             return Math.abs((r.left + r.right) / 2 - mid) < 4 && r.bottom <= q.top;
         })()""")
+        visible_ids = page.evaluate(
+            "[...document.querySelectorAll('[id]')].filter(e => e.offsetParent && e.id !== 'launcher').map(e => e.id)")
         menu_hidden_at_start = page.is_hidden("#launcher")
         page.click("#apps-button")
         menu_open = page.is_visible("#launcher") and page.get_attribute("#apps-button", "aria-expanded") == "true"
@@ -226,12 +226,13 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
     remote = [u for u in requests if not u.startswith("file://")]
     assert remote == [], f"start page made network requests: {remote}"
     assert errors == [], errors
-    assert "Preview mode" in status
     assert names == sorted((a["name"] for a in data["apps"]), key=registry_tool.sort_key)
     assert signin_text == "Sign In" and signin_visible and signin_right
     assert signin_href == data["signin"]["url"]
-    assert label == "Anonymous"
     assert shortcuts == [[sc["label"], sc["url"]] for sc in data["shortcuts"]]
     assert [l for l, _ in shortcuts] == ["Cumulus://Mail", "Cumulus://Cloud"]
     assert top_left and logo_centred
     assert menu_hidden_at_start and menu_open and menu_closed_by_escape and menu_closed_by_click
+    # Kept deliberately minimal: Tor status, New identity and bookmarks live
+    # in the browser toolbar, not on the page.
+    assert set(visible_ids) <= {"apps-button", "shortcuts", "signin", "main", "q"}

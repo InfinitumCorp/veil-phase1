@@ -11,8 +11,6 @@
   --focus: #1f5fd6;
   --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
-/* The one coloured element: the small dot beside "Anonymous". */
-:root { --accent: #5b3fd1; }
 @media (prefers-contrast: more) { :root { --ink-quiet: var(--ink); --rule: #9a9aa3; } }
 
 * { box-sizing: border-box; }
@@ -27,7 +25,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---- top bar -------------------------------------------------------- */
 .topbar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px;
-  min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--rule);
+  min-height: 52px; padding: 0 14px;
 }
 /* Top-left links (Cumulus://Mail, Cumulus://Cloud) and "Sign In" share
    the site's navigation style: 13px regular words, a 2px underline on hover. */
@@ -64,6 +62,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .apps-panel[hidden] { display: none; }
 
+.spacer { flex: 1; }
+
 /* "Sign In", top right: a word in the site's navigation style, darker
    than the app names so it reads as the page's one action. */
 .signin {
@@ -77,16 +77,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .signin:hover::after, .signin:focus-visible::after { transform: scaleX(1); }
 .signin[hidden] { display: none; }
 
-/* Workspace label, centred just under the search box. */
-.workspace-strip { display: flex; justify-content: center; margin-top: 16px; }
-.workspace {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 12px; font-weight: 400; color: var(--ink); white-space: nowrap;
-}
-.workspace::before {
-  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none;
-}
-.spacer { flex: 1; }
 
 .app-link {
   display: flex; flex-direction: column; gap: 1px; padding: 9px 12px;
@@ -96,22 +86,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .app-name { font-size: 14px; }
 .app-summary { font-size: 12px; color: var(--ink-quiet); }
 
-.text-button {
-  border: 0; background: none; padding: 6px 10px; border-radius: 2px;
-  font-size: 12px; color: var(--ink-quiet); white-space: nowrap; flex: none;
-}
-.text-button:hover { background: var(--hover); color: var(--ink); }
-/* Outlined button, as in the site's "Let's talk". */
-.outline-button {
-  border: 1px solid var(--ink); background: #fff; padding: 7px 14px; border-radius: 2px;
-  font-size: 12px; color: var(--ink); white-space: nowrap; flex: none;
-}
-.outline-button:hover { background: var(--ink); color: #fff; }
 
 /* ---- centre --------------------------------------------------------- */
 main {
   flex: 1; width: min(620px, 100% - 32px); margin: 0 auto;
-  display: flex; flex-direction: column; justify-content: center; padding: 48px 0 80px;
+  display: flex; flex-direction: column; justify-content: center; padding: 48px 0 140px;
 }
 /* VEIL</> centred above the search box, like Google's logo. */
 .logo {
@@ -124,30 +103,11 @@ main {
 }
 .search input:focus { outline: none; border-color: var(--ink); }
 
-.status {
-  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
-  gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--ink-quiet);
-}
-.status-line { display: inline-flex; align-items: center; gap: 7px; }
-.dot { width: 7px; height: 7px; border-radius: 50%; background: #b5b5bd; }
-.status[data-state="connected"] .dot { background: #1f9d55; }
-.status[data-state="connecting"] .dot { background: #d29a00; }
-.status[data-state="error"] .dot, .status[data-state="blocked"] .dot { background: #d1342f; }
-
-.bookmarks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 32px; }
-.bookmark {
-  font-size: 12px; padding: 6px 12px; border-radius: 2px; border: 1px solid var(--rule);
-  color: var(--ink); text-decoration: none; max-width: 200px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.bookmark:hover { background: var(--hover); }
 
 footer {
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px;
-  margin: 0 14px; padding: 14px 0; border-top: 1px solid var(--rule);
-  font-size: 12px; color: var(--ink);
+  padding: 14px; font-size: 12px; color: var(--ink-quiet);
 }
-footer .quiet { color: var(--ink-quiet); }
 
 @media (max-width: 560px) {
   .topbar { padding: 0 8px; gap: 6px; }
