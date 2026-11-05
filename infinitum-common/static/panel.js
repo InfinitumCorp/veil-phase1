@@ -10,10 +10,9 @@ const Infinitum = (() => {
     try { return decodeURIComponent(m[1]).slice(0, 2000); } catch { return ""; }
   }
 
-  /** Sign in with Cumulus://ID in a popup, so it works inside the side panel. */
+  /** Sign in with Cumulus://ID right in the panel; it comes back here signed in. */
   function signIn() {
-    const w = window.open("/auth/login?popup=1", "cumulus-id", "popup,width=460,height=640");
-    if (!w) location.href = "/auth/login";       // popups blocked: sign in in place
+    location.href = "/auth/login";
   }
   window.addEventListener("message", e => {
     if (e.origin === location.origin && e.data && e.data.type === "infinitum:signed-in") location.reload();

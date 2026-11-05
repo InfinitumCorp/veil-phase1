@@ -22,11 +22,19 @@ export function parseCookies(header) {
   return out;
 }
 
+// The public demo runs each service on its own domain and frames them inside
+// the prototype, which makes them third-party. INFINITUM_CROSS_SITE_COOKIES=1
+// switches every cookie to SameSite=None; Secure; Partitioned (kept per
+// top-level site, so sign-in works in frames). Real deployments leave it off.
+const CROSS_SITE = process.env.INFINITUM_CROSS_SITE_COOKIES === "1";
+
 export function cookie(name, value, { maxAge, path: p = "/", httpOnly = true, sameSite = "Lax", secure = false } = {}) {
+  if (CROSS_SITE) { sameSite = "None"; secure = true; }
   let c = `${name}=${encodeURIComponent(value)}; Path=${p}; SameSite=${sameSite}`;
   if (maxAge !== undefined) c += `; Max-Age=${Math.floor(maxAge)}`;
   if (httpOnly) c += "; HttpOnly";
   if (secure) c += "; Secure";
+  if (CROSS_SITE) c += "; Partitioned";
   return c;
 }
 
@@ -167,6 +175,6 @@ export function jsonStore(file, initial) {
 
 export const randomToken = (bytes = 32) => crypto.randomBytes(bytes).toString("base64url");
 
-export function listen(server, port, host = "127.0.0.1") {
+export function listen(server, port, host = process.env.INFINITUM_LISTEN_HOST || "127.0.0.1") {
   return new Promise(resolve => server.listen(port, host, () => resolve(server.address().port)));
 }

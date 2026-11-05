@@ -94,13 +94,12 @@ def test_veil_prototype_end_to_end(demo):
         page.locator(".tab >> nth=0").click()
         start.locator("#signin >> text=Signed in").wait_for()
 
-        # @cndctr: the command waits for app sign-in, which is single sign-on.
+        # @cndctr: the command waits for app sign-in, which is single sign-on (no password).
         page.click("#address")
         page.keyboard.type("@cndctr every weekday at 9 remind me to check the board")
         page.keyboard.press("Enter")
         panel.locator(".msg.notice").wait_for()
-        with page.expect_popup():
-            panel.locator("#who button").click()
+        panel.locator("#who button").click()                       # signs in right in the panel
         panel.locator("#who >> text=Ada Lovelace").wait_for(timeout=15000)
         panel.locator(".msg.app >> text=every weekday at 09:00").wait_for()
         assert "check the board" in panel.locator("#tasks").inner_text()

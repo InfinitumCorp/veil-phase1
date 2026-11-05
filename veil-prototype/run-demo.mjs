@@ -19,14 +19,19 @@ import { createPrototype } from "./server.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SITE = "https://infinitum-corporation.vercel.app/products";   // products without a local demo
 
-export async function startDemo({ dataDir = path.join(HERE, ".demo-data"), ports = {}, host = "localhost", quiet = false } = {}) {
+// publicUrls: { cid, scalvs, cndctr, veil } when the demo is served from public
+// https addresses (for example a Vercel Sandbox); otherwise http://localhost.
+export async function startDemo({ dataDir = path.join(HERE, ".demo-data"), ports = {}, host = "localhost", quiet = false,
+                                  publicUrls = null } = {}) {
   const p = { cid: 8400, scalvs: 8401, cndctr: 8402, veil: 8410, ...ports };
-  const url = k => `http://${host}:${p[k]}`;
+  const url = k => (publicUrls ? publicUrls[k].replace(/\/$/, "") : `http://${host}:${p[k]}`);
   const secret = name => persistentSecret(path.join(dataDir, "secrets"), name);
   const scalvsSecret = secret("scalvs-client"), cndctrSecret = secret("cndctr-client"), serviceToken = secret("scalvs-service");
 
   const cid = createCumulusID({
-    issuer: url("cid"), dataDir: path.join(dataDir, "cumulus-id"), frameAncestors: url("veil"),
+    issuer: url("cid"), dataDir: path.join(dataDir, "cumulus-id"), demoBanner: true,
+    // VEIL's tabs and the apps in its panel both frame Cumulus://ID in the prototype.
+    frameAncestors: `${url("veil")} ${url("scalvs")} ${url("cndctr")}`,
     clients: [
       { client_id: "veil-browser", name: "VEIL", type: "public", redirect_uris: [`${url("veil")}/veil/callback`], allowed_origins: [url("veil")] },
       { client_id: "scalvs", name: "SCALVS.ai", type: "confidential", secret: scalvsSecret, redirect_uris: [`${url("scalvs")}/auth/callback`] },
@@ -74,5 +79,7 @@ export async function startDemo({ dataDir = path.join(HERE, ".demo-data"), ports
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  startDemo();
+  // DEMO_PUBLIC_URLS='{"cid":"https://…","scalvs":"https://…","cndctr":"https://…","veil":"https://…"}'
+  startDemo({ publicUrls: process.env.DEMO_PUBLIC_URLS ? JSON.parse(process.env.DEMO_PUBLIC_URLS) : null,
+              dataDir: process.env.DEMO_DATA || undefined });
 }

@@ -77,7 +77,7 @@ export function validateRegistration({ name, email, password, confirm }) {
  *             redirect_uris: [...], post_logout_redirect_uris?: [...],
  *             allowed_origins?: [...] }]   // CORS for the token endpoint
  */
-export function createCumulusID({ issuer, dataDir, clients, frameAncestors = "'none'", secure = issuer.startsWith("https:") }) {
+export function createCumulusID({ issuer, dataDir, clients, frameAncestors = "'none'", secure = issuer.startsWith("https:"), demoBanner = false }) {
   const key = loadSigningKey(dataDir);
   const box = signer(persistentSecret(dataDir, "cookie-secret"));
   const store = jsonStore(path.join(dataDir, "users.json"), { users: {} });
@@ -192,7 +192,7 @@ export function createCumulusID({ issuer, dataDir, clients, frameAncestors = "'n
 
   // ---- pages ----
   function layout(title, body, headers = {}) {
-    return [`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)} — Cumulus://ID</title><link rel="stylesheet" href="/static/cid.css"></head><body><header><span class="brand">Cumulus://ID</span></header><main>${body}</main><footer>One account for everything Infinitum. Signed in over Tor, your location stays hidden.</footer></body></html>`, headers];
+    return [`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)} — Cumulus://ID</title><link rel="stylesheet" href="/static/cid.css"></head><body>${demoBanner ? `<p class="demo-banner" role="note">Demo: don't use a real password. Accounts are deleted when the demo stops.</p>` : ""}<header><span class="brand">Cumulus://ID</span></header><main>${body}</main><footer>One account for everything Infinitum. Signed in over Tor, your location stays hidden.</footer></body></html>`, headers];
   }
 
   function signInPage(res, ctx, { req = "", email = "", error = "", appName = "", status = 200 } = {}) {
