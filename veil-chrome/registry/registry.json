@@ -1,15 +1,9 @@
 {
   "schema": 1,
-  "version": 5,
+  "version": 7,
   "signin": {"label": "Sign In", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#cid", "note": "Cumulus://ID (CID). Placeholder until the CID sign-in page exists."},
   "apps": [
-    {"id": "aether", "name": "ÆTHER™", "summary": "Mesh connectivity", "url": "https://infinitum-corporation.vercel.app/products/aether"},
     {"id": "cndctr", "name": "/CNDCTR/™", "summary": "Automation and agent workflows", "url": "https://infinitum-corporation.vercel.app/products/cndctr"},
-    {"id": "cumulus", "name": "Cumulus://Cloud™", "summary": "Encrypted storage and mail", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange"},
-    {"id": "eon", "name": "E(O)N™", "summary": "Device setup and management", "url": "https://infinitum-corporation.vercel.app/products/eon"},
-    {"id": "fabric", "name": "FABRIC™", "summary": "Encrypted messaging, voice and video", "url": "https://infinitum-corporation.vercel.app/products/fabric"},
-    {"id": "metatron", "name": "METATRON¹⁰⁰™", "summary": "Financial analytics", "url": "https://infinitum-corporation.vercel.app/products/metatron"},
-    {"id": "scalvs", "name": "SCALVS.ai™", "summary": "AI intelligence and research", "url": "https://infinitum-corporation.vercel.app/products/scalus"},
-    {"id": "spectre", "name": "+SPCTR™", "summary": "AI-powered CRM", "url": "https://infinitum-corporation.vercel.app/products/spectre"}
+    {"id": "scalvs", "name": "SCALVS.ai™", "summary": "AI intelligence and research", "url": "https://infinitum-corporation.vercel.app/products/scalus"}
   ]
 }
