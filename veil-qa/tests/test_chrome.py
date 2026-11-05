@@ -227,7 +227,7 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
     assert errors == [], errors
     assert "Preview mode" in status
     by_name = lambda apps: sorted((a["name"] for a in apps), key=registry_tool.sort_key)
-    assert names == by_name(a for a in data["apps"] if a.get("panel"))
+    assert names == by_name(a for a in data["apps"] if a.get("panel") or a.get("footer"))
     assert menu_names == by_name(data["apps"])
     assert mail_href == data["mail"]["url"]
     assert top_right == sorted(top_right) and top_right[0] > 900     # Mail, Apps, Sign In, in that order, at the right

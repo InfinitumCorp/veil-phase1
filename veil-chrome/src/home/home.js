@@ -92,9 +92,10 @@
     return a;
   }
 
-  // Bottom row: the apps that run in the side panel.
+  // Bottom row: the apps that run in the side panel, plus any marked
+  // "footer" (FABRIC), which open as links.
   const launcher = document.getElementById("launcher");
-  for (const app of apps.filter(a => a.panel === true)) {
+  for (const app of apps.filter(a => a.panel === true || a.footer === true)) {
     const a = appLink(app, "app-link");
     a.title = app.summary;
     a.textContent = app.name;

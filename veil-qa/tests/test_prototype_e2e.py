@@ -57,8 +57,8 @@ def test_veil_prototype_end_to_end(demo):
         panel = page.frame_locator("#panel-frame")
 
         # Start page: two panel apps at the bottom; Mail and Apps at the top.
-        start.locator("#launcher .app-link >> nth=1").wait_for()
-        assert start.locator("#launcher .app-link").all_inner_texts() == ["/CNDCTR/™", "SCALVS.ai™"]
+        start.locator("#launcher .app-link >> nth=2").wait_for()
+        assert start.locator("#launcher .app-link").all_inner_texts() == ["/CNDCTR/™", "FABRIC™", "SCALVS.ai™"]
         assert start.locator("#mail").is_visible()
         start.locator("#apps-button").click()
         assert len(start.locator("#apps-panel .menu-app").all()) == 7

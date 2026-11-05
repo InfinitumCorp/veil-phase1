@@ -90,7 +90,7 @@ def validate(reg: dict) -> list[str]:
         if not isinstance(app, dict):
             errors.append(f"{where} must be an object")
             continue
-        extra = set(app) - {"id", "mark", "name", "summary", "url", "panel"}
+        extra = set(app) - {"id", "mark", "name", "summary", "url", "panel", "footer"}
         if extra:
             errors.append(f"{where} has unknown fields: {sorted(extra)}")
         if not ID_RE.match(str(app.get("id", ""))):
@@ -107,8 +107,9 @@ def validate(reg: dict) -> list[str]:
             errors.append(f"{where}.mark must be 1-3 characters")
         if not plain_https(app.get("url")):
             errors.append(f"{where}.url must be a plain https:// URL")
-        if "panel" in app and not isinstance(app["panel"], bool):
-            errors.append(f"{where}.panel must be true or false")
+        for flag in ("panel", "footer"):
+            if flag in app and not isinstance(app[flag], bool):
+                errors.append(f"{where}.{flag} must be true or false")
     names = [a.get("name", "") for a in apps if isinstance(a, dict) and isinstance(a.get("name"), str)]
     if names != sorted(names, key=sort_key):
         errors.append("apps must be in alphabetical order by name (symbols ignored)")

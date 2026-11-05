@@ -48,7 +48,7 @@ export async function startDemo({ dataDir = path.join(HERE, ".demo-data"), ports
       { id: "cndctr", name: "/CNDCTR/™", summary: "AI coding & execution workspace", url: `${url("cndctr")}/`, panel: true },
       { id: "cumulus", name: "Cumulus://Cloud™", summary: "AI cloud, storage & data exchange", url: `${SITE}/cumulus-exchange` },
       { id: "mail", name: "Cumulus://Mail™", summary: "Email that comes with your cloud", url: `${SITE}/cumulus-exchange#mail` },
-      { id: "fabric", name: "FABRIC™", summary: "Secure communications", url: `${SITE}/fabric` },
+      { id: "fabric", name: "FABRIC™", summary: "Secure communications", url: `${SITE}/fabric`, footer: true },
       { id: "firm", name: "FIRM Wallet™", summary: "Token, wallet & exchange", url: `${SITE}/firm#wallet` },
       { id: "metatron", name: "METATRON¹⁰⁰™", summary: "Consumer command suite", url: `${SITE}/metatron` },
       { id: "scalvs", name: "SCALVS.ai™", summary: "AI workforce platform", url: `${url("scalvs")}/`, panel: true },
