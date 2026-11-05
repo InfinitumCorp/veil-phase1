@@ -35,8 +35,13 @@ export const CLOCK_SKEW_S = 120;
 
 const FIELDS = ["issuer", "authorize_url", "token_url", "client_id", "redirect_uri"];
 
-/** Validate the "cid" block from the registry. */
-export function readConfig(registry) {
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Validate the "cid" block from the registry. allowLoopbackHttp lets the
+ * local prototype use http://localhost; the real browser never sets it.
+ */
+export function readConfig(registry, { allowLoopbackHttp = false } = {}) {
   const cid = registry && registry.signin && registry.signin.cid;
   if (!cid) return null;
   for (const f of FIELDS) {
@@ -44,7 +49,8 @@ export function readConfig(registry) {
   }
   for (const f of ["issuer", "authorize_url", "token_url", "redirect_uri"]) {
     const u = new URL(cid[f]);
-    if (u.protocol !== "https:" || u.username || u.password) {
+    const loopbackOk = allowLoopbackHttp && u.protocol === "http:" && LOOPBACK.has(u.hostname);
+    if ((u.protocol !== "https:" && !loopbackOk) || u.username || u.password) {
       throw new CumulusIDError(`cid.${f} must be a plain https:// address`);
     }
   }
@@ -99,8 +105,8 @@ export class CumulusID {
    * deps: { registry, openTab(url, opts), fetch(url, init), now(), crypto }
    * fetch must be the browser's own fetch, which goes over Tor.
    */
-  constructor({ registry, openTab, fetch, now = () => Date.now(), crypto = globalThis.crypto }) {
-    this.config = readConfig(registry);
+  constructor({ registry, openTab, fetch, now = () => Date.now(), crypto = globalThis.crypto, allowLoopbackHttp = false }) {
+    this.config = readConfig(registry, { allowLoopbackHttp });
     this.openTab = openTab;
     this.fetch = fetch;
     this.now = now;

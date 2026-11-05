@@ -1,7 +1,8 @@
-work/
-__pycache__/
-.pytest_cache/
 *.key
-veil-chrome/src/generated/
 *.pcap
+.demo-data/
+.pytest_cache/
+__pycache__/
 fingerprint-report.json
+veil-chrome/src/generated/
+work/

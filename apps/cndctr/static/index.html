@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>/CNDCTR/</title>
+  <link rel="stylesheet" href="/static/common/app.css">
+</head>
+<body>
+  <header class="app-head">
+    <span class="app-name">/CNDCTR/&#8482;</span>
+    <span id="who"></span>
+  </header>
+  <section class="feed" id="feed" aria-live="polite">
+    <div class="empty"><div class="mark">/CNDCTR/</div>Run commands now or on a schedule. Type <b>help</b> to see what it can do.</div>
+  </section>
+  <section class="tasks" id="tasks" hidden>
+    <h2>Scheduled</h2>
+    <ol id="task-list"></ol>
+  </section>
+  <div class="composer">
+    <form id="cmd">
+      <textarea id="q" rows="1" placeholder="Give /CNDCTR/ a command" aria-label="Command"></textarea>
+      <button class="send" type="submit" aria-label="Run"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+    </form>
+    <div class="hint">Tip: type <b>@cndctr</b> and a command in VEIL's address bar.</div>
+  </div>
+  <script src="/static/common/panel.js"></script>
+  <script src="/static/cndctr.js"></script>
+</body>
+</html>

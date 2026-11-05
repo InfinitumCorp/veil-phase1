@@ -1,4 +1,4 @@
-"""Runs the browser modules' JavaScript tests (anonymity guard, sign-in, app panel, address-bar commands, Cumulus://ID) under Node."""
+"""Runs every JavaScript test suite under Node: the browser modules, Cumulus://ID, and the apps."""
 import shutil
 import subprocess
 
@@ -6,7 +6,7 @@ import pytest
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
-@pytest.mark.parametrize("suite", ["guard.test.mjs", "signin.test.mjs", "apppanel.test.mjs", "commands.test.mjs", "cumulusid.test.mjs"])
+@pytest.mark.parametrize("suite", sorted(p.name for p in (__import__("pathlib").Path(__file__).parent / "js").glob("*.test.mjs")))
 def test_browser_modules(root, suite):
     result = subprocess.run(
         ["node", "--test", str(root / "veil-qa" / "tests" / "js" / suite)],

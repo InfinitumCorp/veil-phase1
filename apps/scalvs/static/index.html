@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SCALVS.ai</title>
+  <link rel="stylesheet" href="/static/common/app.css">
+</head>
+<body>
+  <header class="app-head">
+    <span class="app-name">SCALVS.ai&#8482;</span>
+    <span id="who"></span>
+  </header>
+  <section class="feed" id="feed" aria-live="polite">
+    <div class="empty"><div class="mark">SCALVS.ai</div>Ask anything. Nothing you ask is stored.</div>
+  </section>
+  <div class="composer">
+    <form id="ask">
+      <textarea id="q" rows="1" placeholder="Ask SCALVS.ai" aria-label="Ask SCALVS.ai"></textarea>
+      <button class="send" type="submit" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+    </form>
+    <div class="hint">Tip: type <b>@scalvs</b> and a question in VEIL's address bar.</div>
+  </div>
+  <script src="/static/common/panel.js"></script>
+  <script src="/static/scalvs.js"></script>
+</body>
+</html>

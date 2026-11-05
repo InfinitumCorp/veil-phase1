@@ -1,0 +1,76 @@
+/* VEIL prototype shell: a clean, Chrome-like window in the Infinitum style. */
+:root { --ink: #111820; --quiet: #5f6670; --rule: #e3e4e8; --strip: #eef0f3; --hover: #e2e5e9; --accent: #5b3fd1;
+        --focus: #1f5fd6; --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #fff; }
+body { color: var(--ink); font: 13px/1.4 var(--font); display: flex; flex-direction: column; overflow: hidden; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* tabs */
+.strip { height: 42px; background: var(--strip); display: flex; align-items: flex-end; padding: 0 8px; gap: 4px; flex: none; }
+.tabs { display: flex; align-items: flex-end; gap: 2px; min-width: 0; overflow: hidden; }
+.tab { position: relative; width: 220px; min-width: 90px; flex: 0 1 220px; height: 34px; padding: 0 6px 0 12px; display: flex; align-items: center;
+       gap: 8px; border-radius: 9px 9px 0 0; color: var(--quiet); border: 0; background: none; text-align: left; }
+.tab:hover { background: var(--hover); }
+.tab.active { background: #fff; color: var(--ink); }
+.tab .fav { width: 16px; height: 16px; border-radius: 4px; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 8px; flex: none; }
+.tab .title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab .x { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; font-size: 14px; color: var(--quiet); }
+.tab .x:hover { background: var(--hover); color: var(--ink); }
+.newtab { width: 30px; height: 30px; align-self: center; border: 0; background: none; border-radius: 50%; font-size: 19px; color: var(--quiet); flex: none; }
+.newtab:hover { background: var(--hover); }
+
+/* toolbar */
+.toolbar { position: relative; height: 46px; display: flex; align-items: center; gap: 2px; padding: 0 8px; flex: none; }
+.btn { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; border: 0; background: none; color: var(--ink); flex: none; }
+.btn:hover:not(:disabled) { background: var(--strip); }
+.btn:disabled { color: #b4b8bf; cursor: default; }
+.btn.small { width: 30px; height: 30px; color: var(--quiet); }
+.btn.small svg { width: 16px; height: 16px; }
+.omnibox { flex: 1; height: 36px; margin: 0 6px; border-radius: 18px; background: var(--strip); display: flex; align-items: center; gap: 8px; padding: 0 14px 0 5px; min-width: 0; }
+.omnibox:focus-within { background: #fff; box-shadow: 0 0 0 2px var(--ink) inset; }
+.chip { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px 0 9px; border-radius: 13px; background: #fff;
+        font-size: 12.5px; white-space: nowrap; flex: none; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.omnibox input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-size: 14px; color: var(--ink); outline: none; }
+.omnibox input::placeholder { color: var(--quiet); }
+.menu { position: absolute; top: 42px; right: 8px; z-index: 20; min-width: 220px; background: #fff; border-radius: 8px; padding: 6px;
+        box-shadow: 0 12px 30px rgba(17,24,32,.16), 0 0 0 1px var(--rule); display: flex; flex-direction: column; }
+.menu[hidden] { display: none; }
+.menu button { border: 0; background: none; text-align: left; padding: 9px 12px; border-radius: 5px; font-size: 13.5px; }
+.menu button:hover { background: var(--strip); }
+
+/* address-bar suggestions */
+.suggest { position: absolute; top: 84px; left: 116px; right: 92px; z-index: 15; margin: 0; padding: 6px 0; list-style: none; background: #fff;
+           border-radius: 0 0 14px 14px; box-shadow: 0 14px 30px rgba(17,24,32,.14), 0 0 0 1px var(--rule); }
+.suggest[hidden] { display: none; }
+.suggest li { display: flex; align-items: center; gap: 12px; padding: 9px 18px; font-size: 14px; cursor: pointer; }
+.suggest li[aria-selected="true"], .suggest li:hover { background: var(--strip); }
+.suggest .fav { width: 16px; height: 16px; border-radius: 4px; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 8.5px; flex: none; }
+.suggest .hint { margin-left: auto; color: var(--quiet); font-size: 12.5px; white-space: nowrap; }
+.suggest .foot { padding: 8px 18px 4px; color: var(--quiet); font-size: 12px; border-top: 1px solid var(--rule); margin-top: 4px; cursor: default; }
+.suggest .foot:hover { background: none; }
+
+/* pages and panel */
+.content { flex: 1; display: flex; min-height: 0; border-top: 1px solid var(--rule); }
+.pages { flex: 1; position: relative; min-width: 0; }
+.pages iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+.pages iframe[hidden] { display: none; }
+.splitter { width: 5px; margin-left: -2px; cursor: col-resize; flex: none; position: relative; z-index: 2; }
+.splitter:hover, .splitter.dragging { background: var(--rule); }
+.splitter[hidden] { display: none; }
+.panel { width: 420px; flex: none; border-left: 1px solid var(--rule); display: flex; flex-direction: column; background: #fff; }
+.panel[hidden] { display: none; }
+/* VEIL's own panel controls: the app shows its name in its own header. */
+.panel-head { height: 34px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 6px; background: var(--strip); flex: none; }
+.panel-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.panel iframe { flex: 1; border: 0; width: 100%; }
+.content.resizing iframe { pointer-events: none; }
+
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 16px;
+         border-radius: 8px; font-size: 13px; z-index: 30; max-width: min(560px, 100vw - 32px); text-align: center; }
+.toast[hidden] { display: none; }
+
+body.callback { display: grid; place-items: center; color: var(--quiet); }

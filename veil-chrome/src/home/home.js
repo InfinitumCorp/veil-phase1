@@ -21,7 +21,12 @@
   });
 
   const registry = (typeof VEIL_REGISTRY === "object" && VEIL_REGISTRY) || {};
-  const isHttps = url => typeof url === "string" && url.startsWith("https://");
+  // Only https:// links. The one exception is the local prototype: when this
+  // page itself is served from localhost (never true inside VEIL, where it is
+  // a built-in page), http://localhost links are allowed too.
+  const devLoopback = location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(location.hostname);
+  const isHttps = url => typeof url === "string" &&
+    (url.startsWith("https://") || (devLoopback && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)));
 
   // ---- Sign In (top right) ---------------------------------------------
   // Signing in uses Cumulus://ID. It still goes over Tor, so the user's IP

@@ -28,8 +28,14 @@ export const DEFAULT_WIDTH = 420;
 export const MIN_WIDTH = 320;
 export const MAX_WIDTH = 720;
 
-/** Look up an app in a verified registry and return its safe address. */
-export function appEntry(registry, id) {
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Look up an app in a verified registry and return its safe address.
+ * allowLoopbackHttp lets the local prototype use http://localhost; the real
+ * browser never sets it.
+ */
+export function appEntry(registry, id, { allowLoopbackHttp = false } = {}) {
   const apps = registry && Array.isArray(registry.apps) ? registry.apps : [];
   const app = apps.find(a => a && a.id === id);
   if (!app) throw new AppPanelError(`no app with id '${id}' in this build`);
@@ -39,7 +45,8 @@ export function appEntry(registry, id) {
   } catch {
     throw new AppPanelError(`app '${id}' has an invalid address`);
   }
-  if (url.protocol !== "https:") throw new AppPanelError(`app '${id}' must use https`);
+  const loopbackOk = allowLoopbackHttp && url.protocol === "http:" && LOOPBACK.has(url.hostname);
+  if (url.protocol !== "https:" && !loopbackOk) throw new AppPanelError(`app '${id}' must use https`);
   if (url.username || url.password) throw new AppPanelError(`app '${id}' address must not carry credentials`);
   return { id: app.id, title: app.name, url: url.href };
 }
@@ -48,8 +55,9 @@ export const clampWidth = px =>
   Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(Number.isFinite(px) ? px : DEFAULT_WIDTH)));
 
 export class AppPanel {
-  constructor({ registry, panel }) {
+  constructor({ registry, panel, allowLoopbackHttp = false }) {
     this.registry = registry;
+    this.loopback = { allowLoopbackHttp };
     this.panel = panel;
     this.openId = null;
     this.width = DEFAULT_WIDTH;
@@ -61,7 +69,7 @@ export class AppPanel {
       this.close();
       return null;
     }
-    const entry = appEntry(this.registry, id);
+    const entry = appEntry(this.registry, id, this.loopback);
     if (this.openId === null) this.panel.setWidth(this.width);
     this.panel.show({ url: entry.url, title: entry.title });
     this.openId = id;
@@ -74,7 +82,7 @@ export class AppPanel {
    * fragment, which is never sent to a server.
    */
   openWithPrompt(id, prompt) {
-    const entry = appEntry(this.registry, id);
+    const entry = appEntry(this.registry, id, this.loopback);
     const url = new URL(entry.url);
     url.hash = prompt ? `prompt=${encodeURIComponent(prompt)}` : "";
     if (this.openId === null) this.panel.setWidth(this.width);

@@ -1,7 +1,7 @@
 PY ?= python3
 WORK ?= work
 
-.PHONY: test lint preview clean
+.PHONY: test lint preview demo clean
 
 ## Run every check that does not need a built browser.
 test: lint
@@ -11,6 +11,12 @@ lint:
 	$(PY) veil-browser/tools/veil_patches.py lint veil-browser/patches
 	bash -n veil-build/bootstrap.sh
 	bash -n veil-build/build.sh
+
+## Run the whole demo on this machine: Cumulus://ID, SCALVS.ai, /CNDCTR/ and
+## the clickable VEIL prototype. Then open http://localhost:8410.
+## Set ANTHROPIC_API_KEY first for real SCALVS.ai answers.
+demo:
+	node veil-prototype/run-demo.mjs
 
 ## Build a local preview of the dashboards, signed with a throwaway dev key.
 ## Open $(WORK)/preview/home/home.html.

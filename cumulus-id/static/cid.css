@@ -1,0 +1,27 @@
+/* Cumulus://ID pages, in the Infinitum style. System fonts only. */
+:root { --ink: #111820; --quiet: #5f6670; --rule: #e3e4e8; --hover: #f3f3f5; --focus: #1f5fd6; --bad: #b42318;
+        --font: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #fff; }
+body { color: var(--ink); font: 15px/1.5 var(--font); min-height: 100vh; display: flex; flex-direction: column; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+header { padding: 14px 20px; border-bottom: 1px solid var(--rule); }
+.brand { font-size: 17px; letter-spacing: -0.03em; }
+main { flex: 1; width: min(400px, 100% - 32px); margin: 0 auto; padding: 48px 0; }
+h1 { font-size: 30px; font-weight: 400; letter-spacing: -0.04em; margin: 0 0 6px; }
+.lede { color: var(--quiet); margin: 0 0 24px; }
+form { display: flex; flex-direction: column; gap: 14px; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.hint { color: var(--quiet); }
+input { font: inherit; font-size: 15px; padding: 11px 12px; border: 1px solid var(--rule); border-radius: 2px; color: var(--ink); }
+input:focus { outline: none; border-color: var(--ink); }
+button, .button { font: inherit; font-size: 14px; padding: 11px 16px; border-radius: 2px; border: 1px solid var(--ink);
+                  background: var(--ink); color: #fff; cursor: pointer; text-decoration: none; display: inline-block; text-align: center; }
+button:hover, .button:hover { background: #2a3440; }
+.button.quiet { background: #fff; color: var(--ink); }
+.button.quiet:hover { background: var(--hover); }
+.alt { font-size: 13px; color: var(--quiet); margin-top: 20px; }
+a { color: var(--ink); }
+.error { color: var(--bad); font-size: 14px; margin: 0 0 16px; padding-left: 18px; }
+p.error { padding-left: 0; }
+footer { padding: 14px 20px; font-size: 12px; color: var(--quiet); text-align: center; }

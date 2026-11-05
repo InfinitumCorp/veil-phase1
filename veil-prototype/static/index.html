@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VEIL</title>
+  <link rel="stylesheet" href="/static/shell.css">
+</head>
+<body>
+  <div class="strip" role="tablist" aria-label="Tabs">
+    <div class="tabs" id="tabs"></div>
+    <button class="newtab" id="new-tab" type="button" title="New tab" aria-label="New tab">+</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="back" type="button" title="Back" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+    <button class="btn" id="forward" type="button" title="Forward" aria-label="Forward"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    <button class="btn" id="reload" type="button" title="Reload" aria-label="Reload"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg></button>
+    <form class="omnibox" id="omnibox" role="search" autocomplete="off">
+      <span class="chip" id="chip" title="Every connection goes over Tor in VEIL. This prototype runs on your machine without Tor."><i></i><span id="chip-text">Anonymous</span></span>
+      <input id="address" type="text" spellcheck="false" aria-label="Address, search, or @scalvs / @cndctr command"
+             placeholder="Search privately over Tor, type an address, or @scalvs / @cndctr" aria-autocomplete="list" aria-controls="suggest">
+    </form>
+    <button class="btn" id="new-identity" type="button" title="New identity: close everything and start fresh" aria-label="New identity"><svg viewBox="0 0 24 24"><path d="M14.5 3.5l-6 9M6 13l7 4-2.5 4.5c-2.8-.4-6.1-2.3-7.5-5z M8.5 12.5l5.5 3"/></svg></button>
+    <button class="btn" id="menu-button" type="button" title="Menu" aria-label="Menu" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r=".7"/><circle cx="12" cy="12" r=".7"/><circle cx="12" cy="19" r=".7"/></svg></button>
+    <div class="menu" id="menu" hidden>
+      <button type="button" data-cmd="scalvs">Open SCALVS.ai</button>
+      <button type="button" data-cmd="cndctr">Open /CNDCTR/</button>
+      <button type="button" data-cmd="circuit">New circuit for this site</button>
+      <button type="button" data-cmd="about">About this prototype</button>
+    </div>
+  </div>
+  <ul class="suggest" id="suggest" role="listbox" hidden></ul>
+
+  <div class="content">
+    <div class="pages" id="pages"></div>
+    <div class="splitter" id="splitter" hidden role="separator" aria-label="Resize panel" tabindex="0"></div>
+    <aside class="panel" id="panel" hidden aria-label="App panel">
+      <div class="panel-head">
+        <span class="panel-title" id="panel-title"></span>
+        <button class="btn small" id="panel-tab" type="button" title="Open in a new tab" aria-label="Open in a new tab"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></button>
+        <button class="btn small" id="panel-close" type="button" title="Close panel" aria-label="Close panel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <iframe id="panel-frame" title="App"></iframe>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <script type="module" src="/static/shell.js"></script>
+</body>
+</html>

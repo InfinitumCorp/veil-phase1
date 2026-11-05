@@ -104,3 +104,11 @@ test("appEntry reports the app's display name as the panel title", () => {
   assert.deepEqual(appEntry(REGISTRY, "cndctr"),
     { id: "cndctr", title: "/CNDCTR/™", url: "https://apps.example/cndctr" });
 });
+
+test("http://localhost is refused unless the prototype opts in", () => {
+  const reg = { apps: [{ id: "dev", name: "Dev", url: "http://localhost:8401/" },
+                       { id: "lan", name: "Lan", url: "http://192.168.1.5/" }] };
+  assert.throws(() => appEntry(reg, "dev"), AppPanelError);
+  assert.equal(appEntry(reg, "dev", { allowLoopbackHttp: true }).url, "http://localhost:8401/");
+  assert.throws(() => appEntry(reg, "lan", { allowLoopbackHttp: true }), AppPanelError);
+});
