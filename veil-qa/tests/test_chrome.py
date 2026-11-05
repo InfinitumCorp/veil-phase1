@@ -207,6 +207,8 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
         names = page.locator("#launcher .app-link").all_text_contents()
         menu_names = page.locator("#apps-panel .menu-app-name").all_text_contents()
         mail_href = page.get_attribute("#mail", "href")
+        footer_links = page.eval_on_selector_all(
+            "#footer-links a", "els => els.map(a => [a.textContent, a.getAttribute('href')])")
         top_right = page.evaluate("""['#mail', '#apps-button', '#signin'].map(s =>
             Math.round(document.querySelector(s).getBoundingClientRect().left))""")
         menu_hidden = page.is_hidden("#apps-panel")
@@ -227,9 +229,11 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
     assert errors == [], errors
     assert "Preview mode" in status
     by_name = lambda apps: sorted((a["name"] for a in apps), key=registry_tool.sort_key)
-    assert names == by_name(a for a in data["apps"] if a.get("panel") or a.get("footer"))
+    assert names == by_name(a for a in data["apps"] if a.get("panel"))
     assert menu_names == by_name(data["apps"])
     assert mail_href == data["mail"]["url"]
+    assert footer_links == [[a["name"], a["url"]] for a in data["apps"] if a.get("footer")]
+    assert [n for n, _ in footer_links] == ["FABRIC™"]
     assert top_right == sorted(top_right) and top_right[0] > 900     # Mail, Apps, Sign In, in that order, at the right
     assert menu_hidden and menu_open and menu_closed
     assert signin_text == "Sign In" and signin_visible and signin_right

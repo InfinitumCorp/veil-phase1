@@ -150,6 +150,11 @@ footer {
   font-size: 12px; color: var(--ink);
 }
 footer .quiet { color: var(--ink-quiet); }
+.footer-right { display: inline-flex; align-items: center; gap: 18px; }
+.footer-link { color: var(--ink); text-decoration: none; }
+.footer-link:hover, .footer-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
+.footer-links { display: inline-flex; gap: 18px; }
+.footer-links:empty { display: none; }
 
 @media (max-width: 560px) {
   .topbar { padding: 0 8px; gap: 6px; }

@@ -92,14 +92,22 @@
     return a;
   }
 
-  // Bottom row: the apps that run in the side panel, plus any marked
-  // "footer" (FABRIC), which open as links.
+  // Bottom row: the apps that run in the side panel.
   const launcher = document.getElementById("launcher");
-  for (const app of apps.filter(a => a.panel === true || a.footer === true)) {
+  for (const app of apps.filter(a => a.panel === true)) {
     const a = appLink(app, "app-link");
     a.title = app.summary;
     a.textContent = app.name;
     launcher.append(a);
+  }
+
+  // Footer line: apps marked "footer" in the signed list (FABRIC), as links.
+  const footerLinks = document.getElementById("footer-links");
+  for (const app of apps.filter(a => a.footer === true)) {
+    const link = appLink(app, "footer-link");
+    link.title = app.summary;
+    link.textContent = app.name;
+    footerLinks.append(link);
   }
 
   // Top right: "Mail", and "Apps" with every consumer app.
