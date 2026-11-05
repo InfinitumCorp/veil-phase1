@@ -34,6 +34,33 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: inline-flex; align-items: center; height: 52px; flex: none;
   font-size: 19px; letter-spacing: -0.04em; color: var(--ink); white-space: nowrap;
 }
+/* Top right: Mail, Apps, Sign In — words in the site's navigation style. */
+.top-links { display: flex; align-items: center; gap: 22px; }
+.nav-link {
+  position: relative; padding: 8px 0; font: inherit; font-size: 13px; color: var(--ink);
+  text-decoration: none; white-space: nowrap; background: none; border: 0; cursor: pointer;
+}
+.nav-link::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
+}
+.nav-link:hover::after, .nav-link:focus-visible::after, .nav-link[aria-expanded="true"]::after { transform: scaleX(1); }
+.nav-link[hidden] { display: none; }
+
+/* The Apps menu, under its word. */
+.apps-menu { position: relative; }
+.apps-panel {
+  position: absolute; top: 40px; right: -12px; z-index: 10; width: 300px;
+  display: flex; flex-direction: column; padding: 8px;
+  background: #fff; border: 1px solid var(--rule); border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(17, 24, 32, .12);
+}
+.apps-panel[hidden] { display: none; }
+.menu-app { display: flex; flex-direction: column; gap: 1px; padding: 9px 12px; border-radius: 3px; color: var(--ink); text-decoration: none; }
+.menu-app:hover, .menu-app:focus-visible { background: var(--hover); }
+.menu-app-name { font-size: 14px; }
+.menu-app-summary { font-size: 12px; color: var(--ink-quiet); }
+
 /* "Sign In", top right: a word in the site's navigation style, darker
    than the app names so it reads as the page's one action. */
 .signin {
@@ -126,6 +153,8 @@ footer .quiet { color: var(--ink-quiet); }
 
 @media (max-width: 560px) {
   .topbar { padding: 0 8px; gap: 6px; }
+  .top-links { gap: 16px; }
+  .apps-panel { width: min(300px, 100vw - 16px); }
   .apps { gap: 2px 18px; }
   footer { justify-content: flex-start; }
 }

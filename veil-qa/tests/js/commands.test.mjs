@@ -10,8 +10,8 @@ const { parse, suggestion, run, panelUrl, MAX_PROMPT } = await import(src("VeilA
 const { AppPanel } = await import(src("VeilAppPanel.sys.mjs"));
 
 const REGISTRY = { apps: [
-  { id: "cndctr", name: "/CNDCTR/™", url: "https://apps.example/cndctr" },
-  { id: "scalvs", name: "SCALVS.ai™", url: "https://apps.example/scalus#old" },
+  { id: "cndctr", name: "/CNDCTR/™", url: "https://apps.example/cndctr", panel: true },
+  { id: "scalvs", name: "SCALVS.ai™", url: "https://apps.example/scalus#old", panel: true },
 ] };
 
 test("both spellings reach each app, any case", () => {

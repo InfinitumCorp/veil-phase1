@@ -1,0 +1,28 @@
+/* VEIL's clean toolbar (patch 0001, [branding]): one row of tabs, then back,
+   forward, reload, the address bar, New identity and the menu. Everything
+   else stays reachable from the menu. Browser chrome only: nothing here is
+   visible to web content, so it doesn't affect fingerprinting. */
+
+/* Hide the bookmarks toolbar and the extra buttons Tor Browser shows. */
+#PersonalToolbar { visibility: collapse !important; }
+#home-button, #downloads-button, #fxa-toolbar-menu-button,
+#security-level-button, #new-circuit-button, #library-button,
+#sidebar-button, #unified-extensions-button { display: none !important; }
+
+/* Address bar: a soft rounded field, white with a dark ring when focused. */
+#urlbar-background { border-radius: 18px !important; background-color: #eef0f3 !important; border: 0 !important; }
+#urlbar[focused] > #urlbar-background { background-color: #fff !important; outline: 2px solid #111820 !important; outline-offset: -2px; }
+#urlbar-input { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+/* The "Anonymous" chip at the left of the address bar. */
+#veil-anonymous-chip {
+  display: flex; align-items: center; gap: 7px; height: 26px; margin-inline: 4px 8px; padding-inline: 9px 11px;
+  border-radius: 13px; background: #fff; color: #111820; font: 12.5px "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+#veil-anonymous-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #5b3fd1; }
+
+/* Side panel (VeilSidePanel). */
+#veil-panel { width: 420px; min-width: 320px; max-width: 720px; border-inline-start: 1px solid #e3e4e8; background: #fff; }
+#veil-panel-bar { min-height: 34px; padding-inline: 6px; background: #eef0f3; }
+#veil-panel-splitter { width: 5px; margin-inline-start: -2px; border: 0; background: transparent; }
+#veil-panel-splitter:hover { background: #e3e4e8; }

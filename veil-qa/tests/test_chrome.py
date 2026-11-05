@@ -205,6 +205,15 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
         page.wait_for_load_state("networkidle")
         status = page.text_content("#tor-status-text")
         names = page.locator("#launcher .app-link").all_text_contents()
+        menu_names = page.locator("#apps-panel .menu-app-name").all_text_contents()
+        mail_href = page.get_attribute("#mail", "href")
+        top_right = page.evaluate("""['#mail', '#apps-button', '#signin'].map(s =>
+            Math.round(document.querySelector(s).getBoundingClientRect().left))""")
+        menu_hidden = page.is_hidden("#apps-panel")
+        page.click("#apps-button")
+        menu_open = page.is_visible("#apps-panel")
+        page.keyboard.press("Escape")
+        menu_closed = page.is_hidden("#apps-panel")
         signin_text = page.text_content("#signin")
         signin_href = page.get_attribute("#signin", "href")
         signin_visible = page.is_visible("#signin")
@@ -217,7 +226,12 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
     assert remote == [], f"start page made network requests: {remote}"
     assert errors == [], errors
     assert "Preview mode" in status
-    assert names == sorted((a["name"] for a in data["apps"]), key=registry_tool.sort_key)
+    by_name = lambda apps: sorted((a["name"] for a in apps), key=registry_tool.sort_key)
+    assert names == by_name(a for a in data["apps"] if a.get("panel"))
+    assert menu_names == by_name(data["apps"])
+    assert mail_href == data["mail"]["url"]
+    assert top_right == sorted(top_right) and top_right[0] > 900     # Mail, Apps, Sign In, in that order, at the right
+    assert menu_hidden and menu_open and menu_closed
     assert signin_text == "Sign In" and signin_visible and signin_right
     assert signin_href == data["signin"]["url"]
     assert label == "Anonymous"

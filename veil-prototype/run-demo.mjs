@@ -17,6 +17,7 @@ import { createConductor } from "../apps/cndctr/server.mjs";
 import { createPrototype } from "./server.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
+const SITE = "https://infinitum-corporation.vercel.app/products";   // products without a local demo
 
 export async function startDemo({ dataDir = path.join(HERE, ".demo-data"), ports = {}, host = "localhost", quiet = false } = {}) {
   const p = { cid: 8400, scalvs: 8401, cndctr: 8402, veil: 8410, ...ports };
@@ -44,9 +45,15 @@ export async function startDemo({ dataDir = path.join(HERE, ".demo-data"), ports
       issuer: url("cid"), authorize_url: `${url("cid")}/authorize`, token_url: `${url("cid")}/token`,
       client_id: "veil-browser", redirect_uri: `${url("veil")}/veil/callback` } },
     apps: [
-      { id: "cndctr", name: "/CNDCTR/™", summary: "Automation and agent workflows", url: `${url("cndctr")}/` },
-      { id: "scalvs", name: "SCALVS.ai™", summary: "AI intelligence and research", url: `${url("scalvs")}/` },
+      { id: "cndctr", name: "/CNDCTR/™", summary: "AI coding & execution workspace", url: `${url("cndctr")}/`, panel: true },
+      { id: "cumulus", name: "Cumulus://Cloud™", summary: "AI cloud, storage & data exchange", url: `${SITE}/cumulus-exchange` },
+      { id: "mail", name: "Cumulus://Mail™", summary: "Email that comes with your cloud", url: `${SITE}/cumulus-exchange#mail` },
+      { id: "fabric", name: "FABRIC™", summary: "Secure communications", url: `${SITE}/fabric` },
+      { id: "firm", name: "FIRM Wallet™", summary: "Token, wallet & exchange", url: `${SITE}/firm#wallet` },
+      { id: "metatron", name: "METATRON¹⁰⁰™", summary: "Consumer command suite", url: `${SITE}/metatron` },
+      { id: "scalvs", name: "SCALVS.ai™", summary: "AI workforce platform", url: `${url("scalvs")}/`, panel: true },
     ],
+    mail: { label: "Mail", url: `${SITE}/cumulus-exchange#mail` },
   };
   const veil = createPrototype({ registry, frameSources: [url("cid"), url("scalvs"), url("cndctr")] });
 

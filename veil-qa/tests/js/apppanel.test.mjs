@@ -10,10 +10,10 @@ const { AppPanel, AppPanelError, appEntry, clampWidth, DEFAULT_WIDTH, MIN_WIDTH,
 
 const REGISTRY = {
   apps: [
-    { id: "cndctr", name: "/CNDCTR/™", url: "https://apps.example/cndctr" },
-    { id: "scalvs", name: "SCALVS.ai™", url: "https://apps.example/scalus" },
-    { id: "bad", name: "Bad", url: "http://apps.example/bad" },
-    { id: "creds", name: "Creds", url: "https://u:p@apps.example/" },
+    { id: "cndctr", name: "/CNDCTR/™", url: "https://apps.example/cndctr", panel: true },
+    { id: "scalvs", name: "SCALVS.ai™", url: "https://apps.example/scalus", panel: true },
+    { id: "bad", name: "Bad", url: "http://apps.example/bad", panel: true },
+    { id: "creds", name: "Creds", url: "https://u:p@apps.example/", panel: true },
   ],
 };
 
@@ -106,9 +106,14 @@ test("appEntry reports the app's display name as the panel title", () => {
 });
 
 test("http://localhost is refused unless the prototype opts in", () => {
-  const reg = { apps: [{ id: "dev", name: "Dev", url: "http://localhost:8401/" },
-                       { id: "lan", name: "Lan", url: "http://192.168.1.5/" }] };
+  const reg = { apps: [{ id: "dev", name: "Dev", url: "http://localhost:8401/", panel: true },
+                       { id: "lan", name: "Lan", url: "http://192.168.1.5/", panel: true }] };
   assert.throws(() => appEntry(reg, "dev"), AppPanelError);
   assert.equal(appEntry(reg, "dev", { allowLoopbackHttp: true }).url, "http://localhost:8401/");
   assert.throws(() => appEntry(reg, "lan", { allowLoopbackHttp: true }), AppPanelError);
+});
+
+test("apps not marked for the panel never open in it", () => {
+  const reg = { apps: [{ id: "fabric", name: "FABRIC", url: "https://apps.example/fabric" }] };
+  assert.throws(() => appEntry(reg, "fabric"), /doesn't open in the side panel/);
 });

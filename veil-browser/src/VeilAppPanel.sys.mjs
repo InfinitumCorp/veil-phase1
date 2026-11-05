@@ -39,6 +39,7 @@ export function appEntry(registry, id, { allowLoopbackHttp = false } = {}) {
   const apps = registry && Array.isArray(registry.apps) ? registry.apps : [];
   const app = apps.find(a => a && a.id === id);
   if (!app) throw new AppPanelError(`no app with id '${id}' in this build`);
+  if (app.panel !== true) throw new AppPanelError(`app '${id}' doesn't open in the side panel`);
   let url;
   try {
     url = new URL(app.url);

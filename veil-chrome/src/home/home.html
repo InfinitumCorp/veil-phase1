@@ -17,9 +17,16 @@
   <header class="topbar">
     <span class="brand">VEIL&lt;/&gt;</span>
     <span class="spacer"></span>
-    <!-- Opens Cumulus://ID sign-in in a new tab, over Tor. The address comes
-         from the signed app list, never from this page. -->
-    <a class="signin" id="signin" rel="noreferrer" hidden>Sign In</a>
+    <nav class="top-links" aria-label="Infinitum">
+      <a class="nav-link" id="mail" rel="noreferrer" hidden>Mail</a>
+      <div class="apps-menu">
+        <button type="button" class="nav-link" id="apps-button" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel" hidden>Apps</button>
+        <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden></div>
+      </div>
+      <!-- Opens Cumulus://ID sign-in in a new tab, over Tor. The address comes
+           from the signed app list, never from this page. -->
+      <a class="signin" id="signin" rel="noreferrer" hidden>Sign In</a>
+    </nav>
   </header>
 
   <main id="main">

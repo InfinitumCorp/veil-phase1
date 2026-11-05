@@ -52,7 +52,7 @@ def validate(reg: dict) -> list[str]:
         errors.append("schema must be 1")
     if not isinstance(reg.get("version"), int) or reg["version"] < 1:
         errors.append("version must be a positive integer")
-    extra_top = set(reg) - {"schema", "version", "signin", "apps"}
+    extra_top = set(reg) - {"schema", "version", "signin", "mail", "apps"}
     if extra_top:
         errors.append(f"unknown top-level fields: {sorted(extra_top)}")
     signin = reg.get("signin")
@@ -75,6 +75,12 @@ def validate(reg: dict) -> list[str]:
                             errors.append(f"signin.cid.{k} must be a plain https:// URL")
                     if not isinstance(cid["client_id"], str) or not cid["client_id"].strip():
                         errors.append("signin.cid.client_id must be set")
+    mail = reg.get("mail")
+    if mail is not None:
+        if not isinstance(mail, dict) or set(mail) != {"label", "url"}:
+            errors.append("mail must have exactly label and url")
+        elif not isinstance(mail["label"], str) or not 1 <= len(mail["label"].strip()) <= 24 or not plain_https(mail["url"]):
+            errors.append("mail needs a 1-24 character label and a plain https:// URL")
     apps = reg.get("apps")
     if not isinstance(apps, list) or not apps:
         return errors + ["apps must be a non-empty list"]
@@ -84,7 +90,7 @@ def validate(reg: dict) -> list[str]:
         if not isinstance(app, dict):
             errors.append(f"{where} must be an object")
             continue
-        extra = set(app) - {"id", "mark", "name", "summary", "url"}
+        extra = set(app) - {"id", "mark", "name", "summary", "url", "panel"}
         if extra:
             errors.append(f"{where} has unknown fields: {sorted(extra)}")
         if not ID_RE.match(str(app.get("id", ""))):
@@ -101,6 +107,8 @@ def validate(reg: dict) -> list[str]:
             errors.append(f"{where}.mark must be 1-3 characters")
         if not plain_https(app.get("url")):
             errors.append(f"{where}.url must be a plain https:// URL")
+        if "panel" in app and not isinstance(app["panel"], bool):
+            errors.append(f"{where}.panel must be true or false")
     names = [a.get("name", "") for a in apps if isinstance(a, dict) and isinstance(a.get("name"), str)]
     if names != sorted(names, key=sort_key):
         errors.append("apps must be in alphabetical order by name (symbols ignored)")

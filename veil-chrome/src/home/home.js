@@ -61,38 +61,88 @@
     }
   });
 
-  // ---- Infinitum apps (bottom) ------------------------------------------
+  // ---- Infinitum apps ----------------------------------------------------
   // From the bundled, signed registry, in alphabetical order: letters and
   // digits only, so + / ( ) and trademark signs are ignored and Æ sorts as
   // AE (the registry tool uses the same rule). Plain links: nothing is
   // fetched until the user clicks one, and then it loads over Tor.
   const sortKey = name => name.replace(/Æ/g, "AE").replace(/æ/g, "ae")
     .normalize("NFKD").replace(/[^0-9A-Za-z]/g, "").toLowerCase();
-  const launcher = document.getElementById("launcher");
   const apps = (Array.isArray(registry.apps) ? registry.apps : [])
-    .filter(app => typeof app.name === "string")
+    .filter(app => typeof app.name === "string" && isHttps(app.url))
     .slice()
     .sort((a, b) => sortKey(a.name).localeCompare(sortKey(b.name)));
-  for (const app of apps) {
-    if (!isHttps(app.url)) continue;
+
+  // Apps marked "panel" open in VEIL's side panel, next to the current page,
+  // like ChatGPT's sidebar; clicking again closes it. Only the app id is
+  // sent: the browser takes the address from its own copy of the signed
+  // registry. Other apps, and every app outside VEIL, open as links.
+  function appLink(app, className) {
     const a = document.createElement("a");
-    a.className = "app-link";
+    a.className = className;
     a.href = app.url;
     a.rel = "noreferrer";
-    a.title = app.summary;
-    a.textContent = app.name;
-    // Inside VEIL the app opens in the side panel, next to the current page,
-    // like ChatGPT's sidebar; clicking it again closes the panel. Only the
-    // app id is sent: the browser takes the address from its own copy of the
-    // signed registry. Outside VEIL (preview), the link works as a link.
     a.addEventListener("click", event => {
-      if (VeilBridge.native && typeof app.id === "string") {
+      if (app.panel === true && VeilBridge.native && typeof app.id === "string") {
         event.preventDefault();
+        closeApps();
         VeilBridge.send("VEIL:OpenAppPanel", { id: app.id });
       }
     });
+    return a;
+  }
+
+  // Bottom row: the apps that run in the side panel.
+  const launcher = document.getElementById("launcher");
+  for (const app of apps.filter(a => a.panel === true)) {
+    const a = appLink(app, "app-link");
+    a.title = app.summary;
+    a.textContent = app.name;
     launcher.append(a);
   }
+
+  // Top right: "Mail", and "Apps" with every consumer app.
+  const mail = document.getElementById("mail");
+  if (registry.mail && isHttps(registry.mail.url)) {
+    mail.href = registry.mail.url;
+    mail.textContent = registry.mail.label || "Mail";
+    mail.title = "Cumulus://Mail";
+    mail.hidden = false;
+  }
+
+  const appsButton = document.getElementById("apps-button");
+  const appsPanel = document.getElementById("apps-panel");
+  for (const app of apps) {
+    const a = appLink(app, "menu-app");
+    a.setAttribute("role", "menuitem");
+    const name = document.createElement("span");
+    name.className = "menu-app-name";
+    name.textContent = app.name;
+    const summary = document.createElement("span");
+    summary.className = "menu-app-summary";
+    summary.textContent = app.panel === true ? `${app.summary} · opens beside the page` : app.summary;
+    a.append(name, summary);
+    appsPanel.append(a);
+  }
+  appsButton.hidden = !apps.length;
+
+  function closeApps() {
+    appsPanel.hidden = true;
+    appsButton.setAttribute("aria-expanded", "false");
+  }
+  appsButton.addEventListener("click", event => {
+    event.stopPropagation();
+    const open = appsPanel.hidden;
+    appsPanel.hidden = !open;
+    appsButton.setAttribute("aria-expanded", String(open));
+    if (open) appsPanel.querySelector("a")?.focus();
+  });
+  document.addEventListener("click", event => {
+    if (!appsPanel.hidden && !appsPanel.contains(event.target)) closeApps();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !appsPanel.hidden) { closeApps(); appsButton.focus(); }
+  });
 
   VeilBridge.on("VEIL:Bookmarks", ({ items }) => {
     const box = document.getElementById("bookmarks");
