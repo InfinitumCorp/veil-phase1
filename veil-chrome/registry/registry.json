@@ -1,7 +1,11 @@
 {
   "schema": 1,
-  "version": 5,
+  "version": 6,
   "signin": {"label": "Sign In", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#cid", "note": "Cumulus://ID (CID). Placeholder until the CID sign-in page exists."},
+  "shortcuts": [
+    {"id": "mail", "label": "Cumulus://Mail", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#mail"},
+    {"id": "cloud", "label": "Cumulus://Cloud", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange"}
+  ],
   "apps": [
     {"id": "aether", "name": "ÆTHER™", "summary": "Mesh connectivity", "url": "https://infinitum-corporation.vercel.app/products/aether"},
     {"id": "cndctr", "name": "/CNDCTR/™", "summary": "Automation and agent workflows", "url": "https://infinitum-corporation.vercel.app/products/cndctr"},

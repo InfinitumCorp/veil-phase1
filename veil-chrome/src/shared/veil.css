@@ -1,7 +1,7 @@
 /* VEIL start pages: white, quiet, nothing loaded from the network.
    Typography follows infinitum-corporation.vercel.app: Helvetica Neue at a
    regular weight with tight tracking on headlines. It is a system font, so
-   nothing is downloaded; app icons are drawn in CSS, never fetched. */
+   nothing is downloaded; the products menu icon is drawn in CSS. */
 :root {
   --bg: #ffffff;
   --ink: #111820;
@@ -29,11 +29,41 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px;
   min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--rule);
 }
-/* Brand mark, top left, as the Infinitum logo sits on the site. */
-.brand {
-  display: inline-flex; align-items: center; height: 52px; flex: none;
-  font-size: 19px; letter-spacing: -0.04em; color: var(--ink); white-space: nowrap;
+/* Top-left links (Cumulus://Mail, Cumulus://Cloud) and "Sign In" share
+   the site's navigation style: 13px regular words, a 2px underline on hover. */
+.shortcuts { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.nav-link {
+  position: relative; padding: 8px 0; font-size: 13px; color: var(--ink);
+  text-decoration: none; white-space: nowrap; flex: none;
 }
+.nav-link::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
+}
+.nav-link:hover::after, .nav-link:focus-visible::after { transform: scaleX(1); }
+
+/* Products menu, top left corner, like Google's apps grid. */
+.products { position: relative; flex: none; }
+.apps-button {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: none; margin-left: -6px;
+}
+.apps-button:hover, .apps-button[aria-expanded="true"] { background: var(--hover); }
+.apps-button[hidden] { display: none; }
+.apps-grid { display: grid; grid-template-columns: repeat(3, 4px); gap: 3px; }
+.apps-grid i { width: 4px; height: 4px; border-radius: 50%; background: var(--ink); }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+.apps-panel {
+  position: absolute; top: 42px; left: -6px; z-index: 10; width: 300px;
+  display: flex; flex-direction: column; padding: 8px;
+  background: #fff; border: 1px solid var(--rule); border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(17, 24, 32, .12);
+}
+.apps-panel[hidden] { display: none; }
+
 /* "Sign In", top right: a word in the site's navigation style, darker
    than the app names so it reads as the page's one action. */
 .signin {
@@ -58,23 +88,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .spacer { flex: 1; }
 
-/* App names along the bottom, above the footer, styled like the Infinitum
-   site navigation: 13px regular words in muted slate, darkening with a 2px
-   underline on hover. */
-.apps {
-  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
-  gap: 4px 22px; padding: 0 14px 14px;
-}
 .app-link {
-  position: relative; padding: 8px 0; font-size: 13px; color: #49545e;
-  text-decoration: none; white-space: nowrap; flex: none;
+  display: flex; flex-direction: column; gap: 1px; padding: 9px 12px;
+  border-radius: 3px; color: var(--ink); text-decoration: none;
 }
-.app-link::after {
-  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
-  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
-}
-.app-link:hover, .app-link:focus-visible { color: var(--ink); }
-.app-link:hover::after, .app-link:focus-visible::after { transform: scaleX(1); }
+.app-link:hover, .app-link:focus-visible { background: var(--hover); }
+.app-name { font-size: 14px; }
+.app-summary { font-size: 12px; color: var(--ink-quiet); }
 
 .text-button {
   border: 0; background: none; padding: 6px 10px; border-radius: 2px;
@@ -92,6 +112,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 main {
   flex: 1; width: min(620px, 100% - 32px); margin: 0 auto;
   display: flex; flex-direction: column; justify-content: center; padding: 48px 0 80px;
+}
+/* VEIL</> centred above the search box, like Google's logo. */
+.logo {
+  margin: 0 0 28px; text-align: center; font-weight: 400;
+  font-size: clamp(48px, 9vw, 84px); line-height: 1; letter-spacing: -0.06em;
 }
 .search input {
   width: 100%; font: inherit; font-size: 16px; padding: 14px 16px;
@@ -126,6 +151,7 @@ footer .quiet { color: var(--ink-quiet); }
 
 @media (max-width: 560px) {
   .topbar { padding: 0 8px; gap: 6px; }
-  .apps { gap: 2px 18px; }
+  .shortcuts { gap: 14px; }
+  .apps-panel { width: min(300px, 100vw - 16px); }
   footer { justify-content: flex-start; }
 }
