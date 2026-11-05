@@ -15,18 +15,7 @@
 </head>
 <body>
   <header class="topbar">
-    <!-- Top left, like Google's apps menu plus Gmail and Drive: a menu of
-         every Infinitum product, then Cumulus://Mail and Cumulus://Cloud. -->
-    <div class="products">
-      <button type="button" class="apps-button" id="apps-button"
-              aria-haspopup="true" aria-expanded="false" aria-controls="launcher"
-              title="Infinitum products">
-        <span class="apps-grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-        <span class="visually-hidden">Infinitum products</span>
-      </button>
-      <nav class="apps-panel" id="launcher" aria-label="Infinitum products" hidden></nav>
-    </div>
-    <nav class="shortcuts" id="shortcuts" aria-label="Cumulus"></nav>
+    <span class="brand">VEIL&lt;/&gt;</span>
     <span class="spacer"></span>
     <!-- Opens Cumulus://ID sign-in in a new tab, over Tor. The address comes
          from the signed app list, never from this page. -->
@@ -34,15 +23,24 @@
   </header>
 
   <main id="main">
-    <h1 class="logo">VEIL&lt;/&gt;</h1>
-
     <form class="search" role="search" method="get"
           action="https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/">
       <input id="q" name="q" type="search" placeholder="Search privately over Tor"
              autocomplete="off" spellcheck="false" aria-label="Search">
     </form>
+
+    <div class="workspace-strip"><span class="workspace" id="workspace" title="Every connection goes over Tor. Your IP address and location stay hidden, signed in or not.">Anonymous</span></div>
+
+    <div class="status" id="tor-status" data-state="unknown" aria-live="polite">
+      <span class="status-line"><span class="dot" aria-hidden="true"></span><span id="tor-status-text">Checking Tor…</span></span>
+      <button type="button" class="text-button" id="new-circuit" title="New route for the current site">New circuit</button>
+      <button type="button" class="text-button" id="new-identity" title="Close all tabs and start fresh">New identity</button>
+    </div>
+
+    <nav class="bookmarks" id="bookmarks" aria-label="Bookmarks"></nav>
   </main>
 
+  <nav class="apps" id="launcher" aria-label="Infinitum apps"></nav>
   <footer><span>AI-powered. Blockchain-governed&#8482;.</span><span class="quiet">&#169; 2026 Infinitum Corporation</span></footer>
   <script src="../shared/bridge.js"></script>
   <script src="../generated/registry.js"></script>

@@ -145,17 +145,6 @@ def test_unsafe_sign_in_url_is_refused(url):
     assert any("signin.url" in e for e in registry_tool.validate(reg))
 
 
-@pytest.mark.parametrize("bad", [
-    [{"id": "mail", "label": "Mail", "url": "http://x.example"}],
-    [{"id": "mail", "label": "Mail"}],
-    [{"id": "m", "label": "M", "url": "https://x.example"}] * 2,
-])
-def test_bad_shortcuts_are_refused(bad):
-    reg = {"schema": 1, "version": 1, "shortcuts": bad,
-           "apps": [{"id": "x", "name": "X", "summary": "s", "url": "https://x.example"}]}
-    assert registry_tool.validate(reg)
-
-
 def test_unsafe_registry_urls_are_refused():
     bad = {"schema": 1, "version": 1, "apps": [
         {"id": "x", "name": "X", "summary": "s", "url": "javascript:alert(1)"}]}
@@ -195,44 +184,21 @@ def test_start_page_in_a_real_browser(signed_registry, root, tmp_path):
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto((site / "home" / "home.html").as_uri())
         page.wait_for_load_state("networkidle")
-        names = page.locator("#launcher .app-name").all_text_contents()
+        status = page.text_content("#tor-status-text")
+        names = page.locator("#launcher .app-link").all_text_contents()
         signin_text = page.text_content("#signin")
         signin_href = page.get_attribute("#signin", "href")
         signin_visible = page.is_visible("#signin")
         signin_right = page.evaluate(
             "document.querySelector('#signin').getBoundingClientRect().right > innerWidth - 40")
-        shortcuts = page.eval_on_selector_all(
-            "#shortcuts a", "els => els.map(a => [a.textContent, a.getAttribute('href')])")
-        top_left = page.evaluate(
-            "['#apps-button', '#shortcuts'].every(s => document.querySelector(s).getBoundingClientRect().left < 260)")
-        logo_centred = page.evaluate("""(() => {
-            const r = document.querySelector('.logo').getBoundingClientRect();
-            const q = document.querySelector('#q').getBoundingClientRect();
-            const mid = innerWidth / 2;
-            return Math.abs((r.left + r.right) / 2 - mid) < 4 && r.bottom <= q.top;
-        })()""")
-        visible_ids = page.evaluate(
-            "[...document.querySelectorAll('[id]')].filter(e => e.offsetParent && e.id !== 'launcher').map(e => e.id)")
-        menu_hidden_at_start = page.is_hidden("#launcher")
-        page.click("#apps-button")
-        menu_open = page.is_visible("#launcher") and page.get_attribute("#apps-button", "aria-expanded") == "true"
-        page.keyboard.press("Escape")
-        menu_closed_by_escape = page.is_hidden("#launcher")
-        page.click("#apps-button")
-        page.mouse.click(700, 500)
-        menu_closed_by_click = page.is_hidden("#launcher")
+        label = page.text_content("#workspace")
         browser.close()
 
     remote = [u for u in requests if not u.startswith("file://")]
     assert remote == [], f"start page made network requests: {remote}"
     assert errors == [], errors
+    assert "Preview mode" in status
     assert names == sorted((a["name"] for a in data["apps"]), key=registry_tool.sort_key)
     assert signin_text == "Sign In" and signin_visible and signin_right
     assert signin_href == data["signin"]["url"]
-    assert shortcuts == [[sc["label"], sc["url"]] for sc in data["shortcuts"]]
-    assert [l for l, _ in shortcuts] == ["Cumulus://Mail", "Cumulus://Cloud"]
-    assert top_left and logo_centred
-    assert menu_hidden_at_start and menu_open and menu_closed_by_escape and menu_closed_by_click
-    # Kept deliberately minimal: Tor status, New identity and bookmarks live
-    # in the browser toolbar, not on the page.
-    assert set(visible_ids) <= {"apps-button", "shortcuts", "signin", "main", "q"}
+    assert label == "Anonymous"

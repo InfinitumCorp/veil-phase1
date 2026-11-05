@@ -52,7 +52,7 @@ def validate(reg: dict) -> list[str]:
         errors.append("schema must be 1")
     if not isinstance(reg.get("version"), int) or reg["version"] < 1:
         errors.append("version must be a positive integer")
-    extra_top = set(reg) - {"schema", "version", "signin", "shortcuts", "apps"}
+    extra_top = set(reg) - {"schema", "version", "signin", "apps"}
     if extra_top:
         errors.append(f"unknown top-level fields: {sorted(extra_top)}")
     signin = reg.get("signin")
@@ -64,23 +64,6 @@ def validate(reg: dict) -> list[str]:
                 errors.append("signin.label must be 1-24 characters")
             if not plain_https(signin.get("url")):
                 errors.append("signin.url must be a plain https:// URL")
-    shortcuts = reg.get("shortcuts", [])
-    if not isinstance(shortcuts, list) or len(shortcuts) > 4:
-        errors.append("shortcuts must be a list of at most 4 links")
-    else:
-        seen_sc = set()
-        for i, sc in enumerate(shortcuts):
-            where = f"shortcuts[{i}]"
-            if not isinstance(sc, dict) or set(sc) != {"id", "label", "url"}:
-                errors.append(f"{where} must have exactly id, label and url")
-                continue
-            if not ID_RE.match(str(sc["id"])) or sc["id"] in seen_sc:
-                errors.append(f"{where}.id invalid or duplicate")
-            seen_sc.add(sc["id"])
-            if not isinstance(sc["label"], str) or not 1 <= len(sc["label"].strip()) <= 24:
-                errors.append(f"{where}.label must be 1-24 characters")
-            if not plain_https(sc["url"]):
-                errors.append(f"{where}.url must be a plain https:// URL")
     apps = reg.get("apps")
     if not isinstance(apps, list) or not apps:
         return errors + ["apps must be a non-empty list"]
