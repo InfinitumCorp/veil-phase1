@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "version": 7,
-  "signin": {"label": "Sign In", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#cid", "note": "Cumulus://ID (CID). Placeholder until the CID sign-in page exists."},
+  "signin": {"label": "Sign In", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#cid", "note": "Cumulus://ID. Opens the CID page until Cumulus://ID publishes its sign-in addresses; then add a cid block (issuer, authorize_url, token_url, client_id, redirect_uri) and Sign In runs the full sign-in."},
   "apps": [
     {"id": "cndctr", "name": "/CNDCTR/™", "summary": "Automation and agent workflows", "url": "https://infinitum-corporation.vercel.app/products/cndctr"},
     {"id": "scalvs", "name": "SCALVS.ai™", "summary": "AI intelligence and research", "url": "https://infinitum-corporation.vercel.app/products/scalus"}

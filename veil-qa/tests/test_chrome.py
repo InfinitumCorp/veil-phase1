@@ -151,6 +151,19 @@ def test_unsafe_sign_in_url_is_refused(url):
     assert any("signin.url" in e for e in registry_tool.validate(reg))
 
 
+def test_cumulus_id_settings_are_validated():
+    good = {"issuer": "https://id.example", "authorize_url": "https://id.example/a",
+            "token_url": "https://id.example/t", "client_id": "veil-browser",
+            "redirect_uri": "https://id.example/cb"}
+    def reg(cid):
+        return {"schema": 1, "version": 1,
+                "signin": {"label": "Sign In", "url": "https://id.example", "cid": cid},
+                "apps": [{"id": "x", "name": "X", "summary": "s", "url": "https://x.example"}]}
+    assert registry_tool.validate(reg(good)) == []
+    assert registry_tool.validate(reg({**good, "token_url": "http://id.example/t"}))
+    assert registry_tool.validate(reg({k: v for k, v in good.items() if k != "client_id"}))
+
+
 def test_unsafe_registry_urls_are_refused():
     bad = {"schema": 1, "version": 1, "apps": [
         {"id": "x", "name": "X", "summary": "s", "url": "javascript:alert(1)"}]}

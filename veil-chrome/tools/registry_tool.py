@@ -57,13 +57,24 @@ def validate(reg: dict) -> list[str]:
         errors.append(f"unknown top-level fields: {sorted(extra_top)}")
     signin = reg.get("signin")
     if signin is not None:
-        if not isinstance(signin, dict) or set(signin) - {"label", "url", "note"}:
-            errors.append("signin must be an object with label, url and optional note")
+        if not isinstance(signin, dict) or set(signin) - {"label", "url", "note", "cid"}:
+            errors.append("signin must be an object with label, url and optional note and cid")
         else:
             if not isinstance(signin.get("label"), str) or not 1 <= len(signin["label"].strip()) <= 24:
                 errors.append("signin.label must be 1-24 characters")
             if not plain_https(signin.get("url")):
                 errors.append("signin.url must be a plain https:// URL")
+            cid = signin.get("cid")
+            if cid is not None:
+                need = {"issuer", "authorize_url", "token_url", "client_id", "redirect_uri"}
+                if not isinstance(cid, dict) or set(cid) != need:
+                    errors.append(f"signin.cid must have exactly {sorted(need)}")
+                else:
+                    for k in need - {"client_id"}:
+                        if not plain_https(cid[k]):
+                            errors.append(f"signin.cid.{k} must be a plain https:// URL")
+                    if not isinstance(cid["client_id"], str) or not cid["client_id"].strip():
+                        errors.append("signin.cid.client_id must be set")
     apps = reg.get("apps")
     if not isinstance(apps, list) or not apps:
         return errors + ["apps must be a non-empty list"]

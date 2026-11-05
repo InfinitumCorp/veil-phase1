@@ -14,6 +14,8 @@
 #   0004  [network]  Remove every UI path that turns Tor off or adds a direct
 #                    connection (one always-anonymous workspace, no switching)
 #   0005  [update]   Point the updater at VEIL channels and VEIL MAR keys
+#   0006  [chrome]   Address-bar provider for app commands (@scalvs, @cndctr)
+#                    via src/VeilAppCommands.sys.mjs; never searched or saved
 #
 # None of these may change what web content can observe; veil-qa's
 # fingerprint diff against stock Tor Browser gates every build on that.

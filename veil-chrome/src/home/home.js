@@ -32,6 +32,7 @@
   if (registry.signin && isHttps(registry.signin.url)) {
     signin.href = registry.signin.url;
     signin.textContent = registry.signin.label || "Sign In";
+    signin.title = "Sign in with Cumulus://ID";
     signin.hidden = false;
     signin.addEventListener("click", event => {
       // Inside VEIL, the browser opens its own copy of the sign-in address
@@ -50,7 +51,7 @@
       workspace.textContent = "Signed in · IP hidden by Tor";
     } else {
       signin.textContent = (registry.signin && registry.signin.label) || "Sign In";
-      signin.removeAttribute("title");
+      signin.title = "Sign in with Cumulus://ID";
       workspace.textContent = "Anonymous";
     }
   });

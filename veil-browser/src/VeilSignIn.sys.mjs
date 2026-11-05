@@ -14,9 +14,18 @@
  *    sees the real address bar and the site's certificate.
  *  - Nothing here reads, stores or fills passwords.
  *
+ * Sign In goes to Cumulus://ID:
+ *  - When the registry carries Cumulus://ID's sign-in addresses
+ *    (registry.signin.cid), Sign In runs the full Cumulus://ID sign-in
+ *    (VeilCumulusID.sys.mjs) and the start page shows the user signed in.
+ *  - Until then, Sign In opens the Cumulus://ID page (registry.signin.url).
+ *
  * Wired up by patch 0002 ([chrome]) in the about:veil-home parent actor:
- *   case "VEIL:OpenSignIn": VeilSignIn.open({ registry, openTab }); break;
+ *   case "VEIL:OpenSignIn": await VeilSignIn.open({ registry, openTab, cumulusId }); break;
  *   case "VEIL:GetAccount": reply("VEIL:Account", VeilSignIn.account()); break;
+ * and in a navigation listener on every tab:
+ *   if (cumulusId.isRedirect(url)) { cancel(); closeTab();
+ *     await VeilSignIn.finish({ cumulusId, address: url }); }
  */
 
 export class SignInError extends Error {}
@@ -43,11 +52,27 @@ const state = { signedIn: false, name: "" };
 const listeners = new Set();
 
 export const VeilSignIn = {
-  /** Open the sign-in page in a new foreground tab. */
-  open({ registry, openTab }) {
+  /**
+   * Sign In: start Cumulus://ID sign-in when it is configured, otherwise
+   * open the Cumulus://ID page in a new foreground tab.
+   */
+  async open({ registry, openTab, cumulusId = null }) {
+    if (cumulusId && cumulusId.enabled) return cumulusId.start();
     const href = signInUrl(registry);
     openTab(href, { inBackground: false, relatedToCurrent: true });
     return href;
+  },
+
+  /** The Cumulus://ID redirect arrived: finish sign-in and update the page. */
+  async finish({ cumulusId, address }) {
+    try {
+      const account = await cumulusId.handleRedirect(address);
+      this.setAccount(account);
+      return account;
+    } catch (err) {
+      this.setAccount({ signedIn: false });
+      throw err;
+    }
   },
 
   /** Current account state, as sent to the start page. */
@@ -55,10 +80,7 @@ export const VeilSignIn = {
     return { signedIn: state.signedIn, name: state.signedIn ? state.name : "" };
   },
 
-  /**
-   * Called when Cumulus://ID reports a sign-in or sign-out. Until the CID
-   * service exists this is never called, so the start page shows "Sign In".
-   */
+  /** Called when Cumulus://ID sign-in finishes or the user signs out. */
   setAccount({ signedIn, name = "" }) {
     state.signedIn = signedIn === true;
     state.name = state.signedIn && typeof name === "string" ? name.slice(0, 64) : "";
@@ -66,7 +88,8 @@ export const VeilSignIn = {
   },
 
   /** New Identity forgets the account along with every other session. */
-  onNewIdentity() {
+  onNewIdentity(cumulusId = null) {
+    if (cumulusId) cumulusId.forget();
     this.setAccount({ signedIn: false });
   },
 

@@ -18,8 +18,8 @@ never vendored here.
 VEIL is always anonymous. It has one workspace, every connection goes over
 Tor with no direct fallback, and `veil-browser/src/VeilAnonymityGuard.sys.mjs`
 takes the browser offline if any setting would let traffic bypass Tor.
-Signing in (Cumulus://ID, top right of the start page) also goes over Tor,
-so it never reveals the user's IP address or location.
+Sign In (top right of the start page) signs in with Cumulus://ID. It also
+goes over Tor, so it never reveals the user's IP address or location.
 
 To websites, VEIL must look identical to stock Tor Browser. VEIL features
 live in browser chrome, never in anything web content can observe.

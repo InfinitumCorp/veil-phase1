@@ -68,6 +68,21 @@ export class AppPanel {
     return entry;
   }
 
+  /**
+   * Open an app with a prompt typed in the address bar (VeilAppCommands).
+   * Always opens (never toggles closed); the prompt rides in the URL
+   * fragment, which is never sent to a server.
+   */
+  openWithPrompt(id, prompt) {
+    const entry = appEntry(this.registry, id);
+    const url = new URL(entry.url);
+    url.hash = prompt ? `prompt=${encodeURIComponent(prompt)}` : "";
+    if (this.openId === null) this.panel.setWidth(this.width);
+    this.panel.show({ url: url.href, title: entry.title });
+    this.openId = id;
+    return { ...entry, url: url.href };
+  }
+
   close() {
     if (this.openId === null) return;
     this.panel.hide();

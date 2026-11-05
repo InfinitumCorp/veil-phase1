@@ -10,9 +10,9 @@ const { VeilSignIn, signInUrl, SignInError } =
 
 const REG = { signin: { label: "Sign In", url: "https://id.example/sign-in" } };
 
-test("opens the registry's sign-in address in a new foreground tab", () => {
+test("without Cumulus://ID settings, Sign In opens the Cumulus://ID page in a new tab", async () => {
   const opened = [];
-  const href = VeilSignIn.open({ registry: REG, openTab: (u, o) => opened.push([u, o]) });
+  const href = await VeilSignIn.open({ registry: REG, openTab: (u, o) => opened.push([u, o]) });
   assert.equal(href, "https://id.example/sign-in");
   assert.deepEqual(opened, [["https://id.example/sign-in", { inBackground: false, relatedToCurrent: true }]]);
 });
