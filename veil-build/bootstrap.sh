@@ -42,6 +42,20 @@ done
 
 mkdir -p "$WORK_DIR"
 
+# Verify upstream tags against VEIL's own copy of the signers' public keys
+# (veil-build/keys/*.gpg, taken from tor-browser-build's keyring/), in a
+# keyring used for nothing else.
+if [[ $VERIFY -eq 1 ]]; then
+  command -v gpg >/dev/null || die "missing tool: gpg"
+  export GNUPGHOME="$WORK_DIR/.gnupg-upstream"
+  rm -rf "$GNUPGHOME"; mkdir -m 700 -p "$GNUPGHOME"
+  shopt -s nullglob
+  keys=("$HERE"/keys/*.gpg)
+  shopt -u nullglob
+  [[ ${#keys[@]} -gt 0 ]] || die "no upstream signer keys in veil-build/keys"
+  gpg --batch --quiet --import "${keys[@]}" 2>/dev/null || die "could not import upstream signer keys"
+fi
+
 clone_pinned() {
   local url="$1" tag="$2" dir="$3" branch="$4"
   if [[ ! -d "$dir/.git" ]]; then
