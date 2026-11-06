@@ -29,7 +29,9 @@ source "$HERE/veil.conf"
 die() { echo "bootstrap: $*" >&2; exit 1; }
 
 [[ "$TOR_BROWSER_TAG" != CHANGE-ME* ]] \
-  || die "TOR_BROWSER_TAG is not confirmed in veil.conf; set it from the 16.0 release before building"
+  || die "TOR_BROWSER_TAG is not confirmed in veil.conf; run scripts/resolve_upstream.py"
+[[ "$TOR_BROWSER_BUILD_TAG" != CHANGE-ME* ]] \
+  || die "TOR_BROWSER_BUILD_TAG is not confirmed in veil.conf; run scripts/resolve_upstream.py"
 if [[ $VERIFY -eq 1 && -z "${UPSTREAM_SIGNER_FPRS// }" ]]; then
   die "UPSTREAM_SIGNER_FPRS is empty in veil.conf; add the Tor Project signing key fingerprints"
 fi
@@ -86,6 +88,7 @@ python3 "$ROOT/veil-browser/tools/veil_patches.py" apply \
 # Record exactly what was checked out, for the release manifest.
 {
   echo "tor_browser_version=$TOR_BROWSER_VERSION"
+  echo "tor_browser_esr=$TOR_BROWSER_ESR"
   echo "tor_browser_build_tag=$TOR_BROWSER_BUILD_TAG"
   echo "tor_browser_build_commit=$(git -C "$WORK_DIR/tor-browser-build" rev-parse "refs/tags/$TOR_BROWSER_BUILD_TAG^{commit}")"
   echo "tor_browser_tag=$TOR_BROWSER_TAG"

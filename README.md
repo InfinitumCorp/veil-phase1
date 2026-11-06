@@ -55,6 +55,8 @@ The prototype runs on this machine without Tor. In VEIL, every connection goes o
 make test
 
 # On a build machine (needs network, Docker/Podman, ~150 GB disk):
+python3 veil-build/scripts/resolve_upstream.py   # find the signed 16.0 tags; review signers
+python3 veil-build/scripts/resolve_upstream.py --write --trust <FPR>...
 ./veil-build/bootstrap.sh            # fork + pin upstream, apply VEIL patches
 ./veil-build/build.sh linux-x86_64   # reproducible build via tor-browser-build
 ```

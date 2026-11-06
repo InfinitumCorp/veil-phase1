@@ -24,7 +24,7 @@ def test_bootstrap_refuses_missing_signer_keys(root, tmp_path):
     copy = tmp_path / "veil"
     shutil.copytree(root / "veil-build", copy / "veil-build")
     conf = copy / "veil-build" / "veil.conf"
-    conf.write_text(conf.read_text().replace("CHANGE-ME-confirm-16.0-tag", "tor-browser-test-tag"))
+    conf.write_text(conf.read_text().replace("CHANGE-ME-run-resolve_upstream", "tor-browser-test-tag"))
     r = run(copy / "veil-build" / "bootstrap.sh", {"WORK_DIR": str(tmp_path / "work")})
     assert r.returncode != 0
     assert "UPSTREAM_SIGNER_FPRS is empty" in r.stderr
@@ -43,3 +43,4 @@ def test_build_rejects_unknown_channel(root, tmp_path):
 def test_pin_names_tor_browser_16(root):
     conf = (root / "veil-build" / "veil.conf").read_text()
     assert "TOR_BROWSER_VERSION=16.0" in conf
+    assert "TOR_BROWSER_ESR=153.6.0esr" in conf
