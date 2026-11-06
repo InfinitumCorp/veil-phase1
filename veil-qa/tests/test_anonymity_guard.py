@@ -14,6 +14,11 @@ def test_browser_modules(root, suite):
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_guard_is_planned_in_patch_series(root):
-    series = (root / "veil-browser" / "patches" / "series").read_text()
-    assert "VeilAnonymityGuard" in series
+def test_guard_is_installed_and_started_first(root):
+    patch = next((root / "veil-browser" / "patches" / "pending").glob("0003-*.patch")).read_text()
+    assert "VEIL-Tag: network" in patch
+    assert "+++ b/browser/components/veil/VeilAnonymityGuard.sys.mjs" in patch
+    # Started in _beforeUIStartup, before VeilBrowser and before any window.
+    added = [l[1:] for l in patch.splitlines() if l.startswith("+") and not l.startswith("+++")]
+    glue = "\n".join(added)
+    assert ').VeilAnonymityGuard.init();' in glue

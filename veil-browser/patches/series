@@ -1,21 +1,11 @@
-# VEIL patch series, applied in order on top of the pinned tor-browser tag.
+# VEIL patch series (reviewed), applied in order on top of the pinned
+# tor-browser tag by veil-build/bootstrap.sh.
 #
-# Empty until the first patches are cut against the confirmed 16.0 tag on a
-# build machine (they must be generated with `git format-patch` from real
-# commits so they apply cleanly). Planned first patches, in order:
-#
-#   0001  [branding] VEIL name, icons and update URL in browser/branding/veil
-#   0002  [chrome]   Register about:veil-home from veil-chrome, with its parent
-#                    actor answering the start page's bridge messages and
-#                    handling Sign In via src/VeilSignIn.sys.mjs and the
-#                    app side panel via src/VeilAppPanel.sys.mjs
-#   0003  [network]  Install src/VeilAnonymityGuard.sys.mjs at startup: VEIL
-#                    goes offline if any setting would let traffic bypass Tor
-#   0004  [network]  Remove every UI path that turns Tor off or adds a direct
-#                    connection (one always-anonymous workspace, no switching)
-#   0005  [update]   Point the updater at VEIL channels and VEIL MAR keys
-#   0006  [chrome]   Address-bar provider for app commands (@scalvs, @cndctr)
-#                    via src/VeilAppCommands.sys.mjs; never searched or saved
+# Patches are cut by veil-browser/tools/cut_patches.py into pending/ first.
+# A patch moves here once it has its Reviewed-by trailers (two reviewers for
+# network, fingerprint, content and workspace changes); `veil_patches.py lint`
+# enforces that. pending/ currently holds 0001-0004 and 0006; 0005 [update] is
+# cut once VEIL's MAR certificates exist. See src/glue/PATCH-NOTES.md.
 #
 # None of these may change what web content can observe; veil-qa's
 # fingerprint diff against stock Tor Browser gates every build on that.

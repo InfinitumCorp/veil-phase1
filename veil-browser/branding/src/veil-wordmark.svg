@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 172 42" width="172" height="42">
+  <title>VEIL</title>
+  <g fill="none" stroke="#111820" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6 L17 36 L30 6"/>
+    <path d="M60 6 H41 V36 H60 M41 21 H56"/>
+    <path d="M71 6 V36"/>
+    <path d="M84 6 V36 H101"/>
+  </g>
+  <g fill="none" stroke="#5f6670" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M124 12 L114 21 L124 30 M158 12 L168 21 L158 30 M146 8 L136 34"/>
+  </g>
+</svg>

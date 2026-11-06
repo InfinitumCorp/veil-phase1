@@ -1,0 +1,287 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Infinitum Corporation <info@theinfinitumcorporation.com>
+Date: Fri, 6 Nov 2026 00:00:00 +0000
+Subject: [PATCH 5/5] Address-bar commands for VEIL's apps
+
+Typing "@scalvs ..." or "@cndctr ..." in the address bar shows one row
+that opens the app in VEIL's side panel with the request. While such a
+command is typed, VeilUrlbarProvider is the only provider that runs, so
+the text never reaches search suggestions, history matching or a search
+engine, and running it doesn't navigate or add history.
+
+Registered through localProviderModules (urlbar only), using the ESR 153
+provider API (async isActive, object-form UrlbarResult).
+
+VEIL-Tag: chrome
+VEIL-Reason: Run VEIL's apps from the address bar without leaking the request
+---
+ .../urlbar/UrlbarProvidersManager.sys.mjs     |   6 +
+ .../components/veil/VeilAppCommands.sys.mjs   |  74 ++++++++++++
+ .../veil/VeilUrlbarProvider.sys.mjs           | 111 ++++++++++++++++++
+ .../components/veil/content/icons/cndctr.svg  |   1 +
+ .../components/veil/content/icons/scalvs.svg  |   1 +
+ browser/components/veil/jar.mn                |   2 +
+ browser/components/veil/moz.build             |   2 +
+ 7 files changed, 197 insertions(+)
+ create mode 100644 browser/components/veil/VeilAppCommands.sys.mjs
+ create mode 100644 browser/components/veil/VeilUrlbarProvider.sys.mjs
+ create mode 100644 browser/components/veil/content/icons/cndctr.svg
+ create mode 100644 browser/components/veil/content/icons/scalvs.svg
+
+diff --git a/browser/components/urlbar/UrlbarProvidersManager.sys.mjs b/browser/components/urlbar/UrlbarProvidersManager.sys.mjs
+index 0c3846e5a3855963cceef7442b9a6e7254f9a74e..e3159adab576864558a946fb055b46ec129122d5 100644
+--- a/browser/components/urlbar/UrlbarProvidersManager.sys.mjs
++++ b/browser/components/urlbar/UrlbarProvidersManager.sys.mjs
+@@ -39,6 +39,12 @@ ChromeUtils.defineLazyGetter(lazy, "logger", () =>
+ // will track different queries internally by queryContext.
+ // When adding new providers please remember to update the list in metrics.yaml.
+ var localProviderModules = [
++  {
++    // VEIL: @scalvs / @cndctr commands open the app in the side panel.
++    name: "VeilUrlbarProvider",
++    module: "moz-src:///browser/components/veil/VeilUrlbarProvider.sys.mjs",
++    supportedSAPs: ["urlbar"],
++  },
+   {
+     name: "UrlbarProviderAboutPages",
+     module:
+diff --git a/browser/components/veil/VeilAppCommands.sys.mjs b/browser/components/veil/VeilAppCommands.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..d0d127e2b66f927436bf9e518e74cd23389c8150
+--- /dev/null
++++ b/browser/components/veil/VeilAppCommands.sys.mjs
+@@ -0,0 +1,74 @@
++/* VEIL app commands: run /CNDCTR/ and SCALVS.ai from the address bar.
++ *
++ * Typing a command in the address bar opens that app in the side panel
++ * (VeilAppPanel) and hands it the rest of the line:
++ *
++ *   @scalvs summarize this page      -> SCALVS.ai, prompt "summarize this page"
++ *   @scalus what is Tor?             -> same app (spoken name also works)
++ *   @cndctr every Monday, export my reports
++ *   @conductor ...                   -> /CNDCTR/
++ *   @scalvs                          -> just opens SCALVS.ai
++ *
++ * Privacy rules:
++ *  - A command is handled entirely in the browser. It is never sent to the
++ *    search engine and never added to address-bar history.
++ *  - The prompt is passed to the app in the URL fragment (#prompt=...),
++ *    which browsers never send to any server; only the app's own page reads
++ *    it, after it has loaded over Tor.
++ *  - The app's address still comes from the signed registry, never from
++ *    what was typed.
++ *
++ * Browser glue (patch 0006, [chrome]) registers an address-bar provider that
++ * calls suggestion() to show the "Ask SCALVS.ai: ..." row while typing and
++ * run() when the user presses Enter on it.
++ */
++
++// Command words for each app id. Case-insensitive; must be followed by a
++// space or the end of the input.
++export const COMMANDS = Object.freeze({
++  scalvs: ["scalvs", "scalus"],
++  cndctr: ["cndctr", "conductor"],
++});
++
++export const MAX_PROMPT = 2000;
++const VERBS = { scalvs: "Ask", cndctr: "Run in" };
++
++/** Parse address-bar input. Returns {id, prompt} or null if not a command. */
++export function parse(input) {
++  if (typeof input !== "string") return null;
++  const m = /^\s*@([A-Za-z]+)(?:\s+([\s\S]*))?$/.exec(input);
++  if (!m) return null;
++  const word = m[1].toLowerCase();
++  const id = Object.keys(COMMANDS).find(k => COMMANDS[k].includes(word));
++  if (!id) return null;
++  const prompt = (m[2] || "").replace(/\s+/g, " ").trim().slice(0, MAX_PROMPT);
++  return { id, prompt };
++}
++
++/** The address-bar row shown while typing, or null. */
++export function suggestion(input, registry) {
++  const cmd = parse(input);
++  if (!cmd) return null;
++  const app = (registry && Array.isArray(registry.apps) ? registry.apps : []).find(a => a.id === cmd.id);
++  if (!app) return null;
++  const verb = VERBS[cmd.id] || "Open";
++  const label = cmd.prompt ? `${verb} ${app.name}: ${cmd.prompt}` : `Open ${app.name}`;
++  return { ...cmd, label, recordInHistory: false, sendToSearchEngine: false };
++}
++
++/** The panel address: the registry URL with the prompt in its fragment. */
++export function panelUrl(baseUrl, prompt) {
++  const url = new URL(baseUrl);
++  url.hash = prompt ? `prompt=${encodeURIComponent(prompt)}` : "";
++  return url.href;
++}
++
++/**
++ * Run a command: open the app in the side panel with the prompt.
++ * `appPanel` is a VeilAppPanel.AppPanel; it validates the registry address.
++ */
++export function run(input, appPanel) {
++  const cmd = parse(input);
++  if (!cmd) return null;
++  return appPanel.openWithPrompt(cmd.id, cmd.prompt);
++}
+diff --git a/browser/components/veil/VeilUrlbarProvider.sys.mjs b/browser/components/veil/VeilUrlbarProvider.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..bc45ed627901f4ff64b7540fde2108ec46b12c00
+--- /dev/null
++++ b/browser/components/veil/VeilUrlbarProvider.sys.mjs
+@@ -0,0 +1,111 @@
++/* VEIL address-bar commands for Firefox's urlbar (patch 0006).
++ *
++ * Typing "@scalvs ..." or "@cndctr ..." (also "@scalus", "@conductor") shows
++ * one row, "Ask SCALVS.ai™: ..." / "Run in /CNDCTR/™: ...", and pressing
++ * Enter opens that app in VEIL's side panel with the request.
++ *
++ * Privacy: while a command is typed, this provider takes the highest
++ * priority, so the urlbar runs no other provider. Nothing typed after "@scalvs"
++ * reaches search suggestions, history matching or the search engine, and
++ * running the command doesn't navigate, so nothing is added to history.
++ *
++ * Written against the UrlbarProvider API of Firefox ESR 153 (as used by
++ * UrlbarProviderCalculator there): async isActive, sync getPriority,
++ * object-form UrlbarResult, getViewTemplate/getViewUpdate, onEngagement.
++ * Registered through localProviderModules in UrlbarProvidersManager.
++ */
++import {
++  UrlbarProvider,
++  UrlbarUtils,
++} from "moz-src:///browser/components/urlbar/UrlbarUtils.sys.mjs";
++// VeilAppCommands exports plain functions (parse, suggestion, run, ...).
++import * as VeilAppCommands from "moz-src:///browser/components/veil/VeilAppCommands.sys.mjs";
++
++const lazy = {};
++ChromeUtils.defineESModuleGetters(lazy, {
++  UrlbarResult: "chrome://browser/content/urlbar/UrlbarResult.mjs",
++  VeilBrowser: "moz-src:///browser/components/veil/VeilBrowser.sys.mjs",
++});
++
++const DYNAMIC_TYPE = "veilAppCommand";
++// Higher than every built-in provider: when we're active, nothing else runs.
++const PRIORITY = 100;
++
++const VIEW_TEMPLATE = {
++  attributes: { selectable: true },
++  children: [
++    { name: "icon", tag: "img", attributes: { class: "urlbarView-favicon" } },
++    { name: "label", tag: "span", attributes: { class: "urlbarView-title" } },
++    { name: "hint", tag: "span", attributes: { class: "urlbarView-action" } },
++  ],
++};
++
++export class VeilUrlbarProvider extends UrlbarProvider {
++  get name() {
++    return "VeilAppCommands";
++  }
++
++  /** @returns {Values<typeof UrlbarUtils.PROVIDER_TYPE>} */
++  get type() {
++    return UrlbarUtils.PROVIDER_TYPE.HEURISTIC;
++  }
++
++  #suggestion(queryContext) {
++    if (queryContext.sapName && queryContext.sapName != "urlbar") {
++      return null;
++    }
++    return VeilAppCommands.suggestion(queryContext.searchString, lazy.VeilBrowser.registry);
++  }
++
++  async isActive(queryContext) {
++    return !!this.#suggestion(queryContext);
++  }
++
++  getPriority(queryContext) {
++    return this.#suggestion(queryContext) ? PRIORITY : 0;
++  }
++
++  async startQuery(queryContext, addCallback) {
++    const s = this.#suggestion(queryContext);
++    if (!s) {
++      return;
++    }
++    const result = new lazy.UrlbarResult({
++      type: UrlbarUtils.RESULT_TYPE.DYNAMIC,
++      source: UrlbarUtils.RESULT_SOURCE.OTHER_LOCAL,
++      heuristic: true,
++      suggestedIndex: 0,
++      payload: {
++        dynamicType: DYNAMIC_TYPE,
++        appId: s.id,
++        label: s.label,
++        input: queryContext.searchString,
++      },
++    });
++    addCallback(this, result);
++  }
++
++  getViewTemplate(_result) {
++    return VIEW_TEMPLATE;
++  }
++
++  getViewUpdate(result) {
++    return {
++      icon: { attributes: { src: `chrome://browser/content/veil/icons/${result.payload.appId}.svg` } },
++      label: { textContent: result.payload.label },
++      hint: { textContent: "Opens in side panel" },
++    };
++  }
++
++  /** Enter or click on our row: run the command in the window's side panel. */
++  onEngagement(queryContext, controller, details) {
++    const { result } = details;
++    if (result?.providerName != this.name) {
++      return;
++    }
++    const win = controller.browserWindow;
++    VeilAppCommands.run(result.payload.input, lazy.VeilBrowser.appPanelFor(win));
++    controller.view.close();
++    controller.input.handleRevert();
++  }
++}
+diff --git a/browser/components/veil/content/icons/cndctr.svg b/browser/components/veil/content/icons/cndctr.svg
+new file mode 100644
+index 0000000000000000000000000000000000000000..1d63ad06c6bb6056d82f1d865ea2a80b82253fc6
+--- /dev/null
++++ b/browser/components/veil/content/icons/cndctr.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 18" width="16" height="16" fill="none" color="context-fill"><path d="M5 6 L2 9 L5 12 M11 6 L14 9 L11 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+diff --git a/browser/components/veil/content/icons/scalvs.svg b/browser/components/veil/content/icons/scalvs.svg
+new file mode 100644
+index 0000000000000000000000000000000000000000..d9da0ffab3ff53a6551b8540eea32bba404409b9
+--- /dev/null
++++ b/browser/components/veil/content/icons/scalvs.svg
+@@ -0,0 +1 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 18" width="16" height="16" fill="none" color="context-fill"><circle cx="8" cy="9" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="9" r="1.6" fill="currentColor"/></svg>
+diff --git a/browser/components/veil/jar.mn b/browser/components/veil/jar.mn
+index 5102260971c8d7d812be91bc8c9e7e240e4fd097..d64a78340239f02d700b3d5395a4f925cba3a1b8 100644
+--- a/browser/components/veil/jar.mn
++++ b/browser/components/veil/jar.mn
+@@ -7,6 +7,8 @@ browser.jar:
+   content/browser/veil/generated/registry.json  (content/generated/registry.json)
+   content/browser/veil/home/home.html           (content/home/home.html)
+   content/browser/veil/home/home.js             (content/home/home.js)
++  content/browser/veil/icons/cndctr.svg         (content/icons/cndctr.svg)
++  content/browser/veil/icons/scalvs.svg         (content/icons/scalvs.svg)
+   content/browser/veil/shared/bridge.js         (content/shared/bridge.js)
+   content/browser/veil/shared/veil.css          (content/shared/veil.css)
+   content/browser/veil/veil-browser.css         (content/veil-browser.css)
+diff --git a/browser/components/veil/moz.build b/browser/components/veil/moz.build
+index 7c96f00f3365a533962ab4444eaff683c24305a5..bf09b4f42b064f854c7c65b159a0cc6bc6d3aebb 100644
+--- a/browser/components/veil/moz.build
++++ b/browser/components/veil/moz.build
+@@ -11,9 +11,11 @@ MOZ_SRC_FILES += [
+     "AboutVeilHomeChild.sys.mjs",
+     "AboutVeilHomeParent.sys.mjs",
+     "VeilAnonymityGuard.sys.mjs",
++    "VeilAppCommands.sys.mjs",
+     "VeilAppPanel.sys.mjs",
+     "VeilBrowser.sys.mjs",
+     "VeilCumulusID.sys.mjs",
+     "VeilSidePanel.sys.mjs",
+     "VeilSignIn.sys.mjs",
++    "VeilUrlbarProvider.sys.mjs",
+ ]

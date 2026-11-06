@@ -1,7 +1,7 @@
 PY ?= python3
 WORK ?= work
 
-.PHONY: test lint preview demo clean
+.PHONY: patches test lint preview demo clean
 
 ## Run every check that does not need a built browser.
 test: lint
@@ -31,3 +31,14 @@ preview:
 
 clean:
 	rm -rf $(WORK)
+
+# Recut both pending patch series from VEIL's sources (needs the upstream trees;
+# see veil-browser/src/glue/PATCH-NOTES.md).
+patches:
+	@test -n "$(VEIL_UPSTREAM_SUBSET)" -a -n "$(VEIL_UPSTREAM_TBB)" || { echo "set VEIL_UPSTREAM_SUBSET and VEIL_UPSTREAM_TBB"; exit 2; }
+	git -C "$(VEIL_UPSTREAM_SUBSET)" checkout -q -f -B veil upstream && git -C "$(VEIL_UPSTREAM_SUBSET)" clean -qfdx
+	python3 -I veil-browser/tools/cut_patches.py "$(VEIL_UPSTREAM_SUBSET)" veil-browser/patches/pending
+	git -C "$(VEIL_UPSTREAM_TBB)" checkout -q -f -B veil-16.0 tbb-16.0-build1
+	python3 -I veil-build/tools/cut_build_patches.py "$(VEIL_UPSTREAM_TBB)" veil-build/patches/pending
+	python3 veil-browser/tools/veil_patches.py lint --pending veil-browser/patches/pending
+	python3 veil-browser/tools/veil_patches.py lint --pending veil-build/patches/pending

@@ -1,0 +1,3 @@
+# VEIL tor-browser-build patch series awaiting review, cut by
+# veil-build/tools/cut_build_patches.py against tor-browser-build eb1e8801b0ed0a73dbae383ca9328e0d9a25ca89.
+0001-Build-VEIL-s-tor-browser-branch-with-VEIL-update-set.patch

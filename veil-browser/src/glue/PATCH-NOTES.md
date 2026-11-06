@@ -1,42 +1,65 @@
 # Wiring VEIL into Tor Browser
 
-The modules in `src/` and `src/glue/` are complete JavaScript and CSS. Turning
-them into patches 0001–0006 on the build machine needs these small
-registrations in the Tor Browser tree (they reference Firefox internals, so
-they are written against the real source there, then committed with
-`git format-patch` and the VEIL trailers).
+The patches are generated, not hand-edited: `veil-browser/tools/cut_patches.py`
+applies each change to a tor-browser tree at the pinned commit, commits it with
+VEIL trailers and writes the series with `git format-patch`. Every edit to an
+upstream file is anchored on exact text, so a rebase that moves something stops
+with the file and anchor instead of guessing. Cutting is byte-reproducible, and
+`veil-qa/tests/test_bootstrap_e2e.py` fails if the committed series is stale.
 
-## Files to install
+    make patches      # needs VEIL_UPSTREAM_SUBSET and VEIL_UPSTREAM_TBB (see below)
 
-| Source | Installed as | By patch |
-| --- | --- | --- |
-| `src/*.sys.mjs` | `resource:///modules/veil/*.sys.mjs` (browser/modules/veil/, moz.build `EXTRA_JS_MODULES.veil`) | 0002, 0003, 0006 |
-| `src/glue/VeilBrowser.sys.mjs`, `VeilSidePanel.sys.mjs`, `VeilUrlbarProvider.sys.mjs` | same folder | 0002, 0006 |
-| `src/glue/AboutVeilHome{Parent,Child}.sys.mjs` | `browser/actors/` (moz.build `FINAL_TARGET_FILES.actors`) | 0002 |
-| `veil-chrome/src/**` | `chrome://browser/content/veil/` (jar.mn) | 0002 |
-| verified `registry.json` (from `registry_tool.py build`) | `chrome://browser/content/veil/registry.json` | 0002 |
-| `src/glue/veil-browser.css` | `chrome://browser/skin/veil-browser.css`, loaded from browser.xhtml | 0001 |
+Cut against tor-browser `1f8c6d9758e139aee1da08d170fe59a5b4580e87`
+(tag `tor-browser-153.6.0esr-16.0-1-build3`, Tor Browser 16.0 / Firefox ESR 153.6.0).
 
-## Registrations
+## Series (veil-browser/patches/pending, awaiting review)
 
-1. **about:veil-home** — `browser/components/about/AboutRedirector.cpp`:
-   `{"veil-home", "chrome://browser/content/veil/home/home.html", nsIAboutModule::ALLOW_SCRIPT | nsIAboutModule::URI_MUST_LOAD_IN_CHILD | nsIAboutModule::URI_CAN_LOAD_IN_PRIVILEGEDABOUT_PROCESS}`
-   plus the `veil-home` entry in `components.conf`. Set `browser.startup.homepage` and
-   `browser.newtab.url` to `about:veil-home`.
-2. **Actor** — `BrowserGlue.sys.mjs` `JSWINDOWACTORS`:
-   `AboutVeilHome: { parent: { esModuleURI: "resource:///actors/AboutVeilHomeParent.sys.mjs" }, child: { esModuleURI: "resource:///actors/AboutVeilHomeChild.sys.mjs", events: { DOMDocElementInserted: { capture: true } } }, matches: ["about:veil-home"] }`
-3. **Bridge allow-list** — `toolkit/modules/RemotePageAccessManager.sys.mjs`, `accessMap`:
-   `"about:veil-home": { RPMSendAsyncMessage: ["VEIL:GetTorStatus", "VEIL:NewIdentity", "VEIL:NewCircuit", "VEIL:GetBookmarks", "VEIL:OpenSignIn", "VEIL:GetAccount", "VEIL:OpenAppPanel"], RPMAddMessageListener: ["VEIL:TorStatus", "VEIL:Bookmarks", "VEIL:Account"] }`
-   This must match `OUTGOING`/`INCOMING` in `veil-chrome/src/shared/bridge.js` (veil-qa checks they agree).
-4. **Startup** — `BrowserGlue.sys.mjs`: call `VeilBrowser.init()` in `_beforeUIStartup`, and
-   `VeilBrowser.onWindowLoaded(window)` from `browser-init.js` `onLoad`.
-5. **Address-bar chip** — `browser.xhtml`: add `<box id="veil-anonymous-chip" role="status">Anonymous</box>`
-   as the first child of `#urlbar-input-container`; `VeilBrowser` updates its text from `VeilSignIn.subscribe`.
+| # | Tag | What it does | Upstream files touched |
+| --- | --- | --- | --- |
+| 0001 | branding | VEIL names, vendor, URLs and icons in `browser/branding/tb-release` (tor-browser-build builds `tb-<channel>`) | branding only; icons from `veil-browser/branding/make_branding.py` |
+| 0002 | chrome | `browser/components/veil` (start page, sign-in, side panel); `about:veil-home` replaces `about:tor` as home/new tab | `browser/components/moz.build`, `about/AboutRedirector.cpp`, `about/components.conf`, `app/profile/000-tor-browser.js`, `DesktopActorRegistry.sys.mjs`, `toolkit/modules/RemotePageAccessManager.sys.mjs`, `BrowserGlue.sys.mjs`, `base/content/browser-init.js`, `navigator-toolbox.inc.xhtml`, `browser.xhtml` |
+| 0003 | network | Anonymity guard, started first in `_beforeUIStartup` | `BrowserGlue.sys.mjs` |
+| 0004 | network | `TOR_PROVIDER=none` no longer turns Tor off; mock provider only under test automation | `tor-launcher/TorProviderBuilder.sys.mjs`, `TorLauncherUtil.sys.mjs` |
+| 0005 | update | VEIL's MAR certificates replace Tor's in `toolkit/mozapps/update/updater` | **not cut yet**: needs the certificates from VEIL's key ceremony |
+| 0006 | chrome | `@scalvs` / `@cndctr` address-bar commands | `urlbar/UrlbarProvidersManager.sys.mjs` (`localProviderModules`) |
 
-## Things to confirm on ESR 153
+`veil-build/patches/pending/0001` makes tor-browser-build build the VEIL branch
+(by commit, from `rbm.local.conf` written by bootstrap.sh) with VEIL's update URL
+and MAR channel IDs; without it, the build would produce stock Tor Browser.
 
-- The New Identity observer topic (`new-identity-requested`) and `NewIdentityButton.onCommand`.
-- `TorDomainIsolator.newCircuitForBrowser` and `TorConnect.state` values.
-- UrlbarProvider engagement API (`onEngagement` vs. `pickResult`).
+## Layout inside the tree
 
-Each has a single call site, marked in the code.
+- Modules are `moz-src:///browser/components/veil/*.sys.mjs` (`MOZ_SRC_FILES`).
+- Chrome content is `chrome://browser/content/veil/` (`jar.mn`): `home/`, `shared/`,
+  `icons/`, `veil-browser.css`, and `generated/registry.{js,json}`, which bootstrap.sh
+  writes from the signed registry and commits on the VEIL branch. The build fails
+  without them, so an unsigned registry can't ship.
+- `about:veil-home` uses the same flags as `about:tor` (unprivileged content
+  process); its actor uses `RemotePageChild`, limited by `RemotePageAccessManager`
+  to the messages in `veil-chrome/src/shared/bridge.js` (cut_patches.py reads the
+  list from there, so they can't drift).
+
+## Confirmed on ESR 153 (tor-browser 16.0)
+
+- New Identity: `window.NewIdentityButton.onCommand()`; observers get `new-identity-requested`.
+- Tor status: `TorConnect.stageName` with `TorConnectStage` names (`Bootstrapped`, `Offline`, `FinalError`, ...).
+- New circuit: `TorDomainIsolator.newCircuitForBrowser(browser)` (moz-src module).
+- Address bar: `async isActive`, sync `getPriority`, `new UrlbarResult({type, source, heuristic, payload})`,
+  `getViewTemplate`/`getViewUpdate`, `onEngagement(queryContext, controller, details)`; providers are
+  listed in `localProviderModules` with `supportedSAPs`.
+
+## Getting the upstream trees
+
+The full tor-browser clone needs gitlab.torproject.org. Without it, fetch only the
+files the patches touch, by git blob id, and import them with
+`veil-browser/tools/import_upstream_subset.py`, which rejects any file whose
+hash doesn't match. Point `VEIL_UPSTREAM_SUBSET` at the result and
+`VEIL_UPSTREAM_TBB` at a tor-browser-build clone with tag `tbb-16.0-build1`.
+
+## Still to check on a full build
+
+- `browser/components/urlbar/metrics.yaml` lists provider names for telemetry
+  (Tor Browser disables telemetry, but a test may compare the lists).
+- Places that hard-code `about:tor` besides the redirect (for example the
+  update "what's new" override in `abouttor/HomepageOverride.sys.mjs`).
+- The side panel's XUL layout next to Firefox's own sidebar in ESR 153.

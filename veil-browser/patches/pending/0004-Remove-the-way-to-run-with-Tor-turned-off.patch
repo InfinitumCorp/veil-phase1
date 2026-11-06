@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Infinitum Corporation <info@theinfinitumcorporation.com>
+Date: Fri, 6 Nov 2026 00:00:00 +0000
+Subject: [PATCH 4/5] Remove the way to run with Tor turned off
+
+Tor Browser can be started with TOR_PROVIDER=none, which builds the
+browser with no Tor provider at all. VEIL has one always-anonymous
+workspace, so that path is removed: TOR_PROVIDER=none is ignored and
+the mock provider is only available under test automation.
+
+Using a system tor (TOR_SKIP_LAUNCH, as Tails and Whonix do) is kept:
+traffic still goes through Tor, and the anonymity guard checks that
+the proxy settings point at a SOCKS proxy with remote DNS.
+
+VEIL-Tag: network
+VEIL-Reason: No setting or environment variable may turn Tor off in VEIL
+---
+ toolkit/components/tor-launcher/TorLauncherUtil.sys.mjs    | 7 -------
+ toolkit/components/tor-launcher/TorProviderBuilder.sys.mjs | 7 +++++--
+ 2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/toolkit/components/tor-launcher/TorLauncherUtil.sys.mjs b/toolkit/components/tor-launcher/TorLauncherUtil.sys.mjs
+index 1accb4926c5a28e0689323784085ba331c33253f..66ecde81b5374be7febf2dc9ea86d271a594b557 100644
+--- a/toolkit/components/tor-launcher/TorLauncherUtil.sys.mjs
++++ b/toolkit/components/tor-launcher/TorLauncherUtil.sys.mjs
+@@ -537,7 +537,6 @@ export const TorLauncherUtil = {
+     try {
+       const kBrowserToolboxPort = "MOZ_BROWSER_TOOLBOX_PORT";
+       const kEnvSkipLaunch = "TOR_SKIP_LAUNCH";
+-      const kEnvProvider = "TOR_PROVIDER";
+       if (Services.env.exists(kBrowserToolboxPort)) {
+         return false;
+       }
+@@ -545,12 +544,6 @@ export const TorLauncherUtil = {
+         const value = parseInt(Services.env.get(kEnvSkipLaunch));
+         return isNaN(value) || !value;
+       }
+-      if (
+-        Services.env.exists(kEnvProvider) &&
+-        Services.env.get(kEnvProvider) === "none"
+-      ) {
+-        return false;
+-      }
+     } catch (e) {}
+     return Services.prefs.getBoolPref(kPrefStartTor, true);
+   },
+diff --git a/toolkit/components/tor-launcher/TorProviderBuilder.sys.mjs b/toolkit/components/tor-launcher/TorProviderBuilder.sys.mjs
+index 25d008d25794fcd7424b740b00089f7dbc94f055..7b8ced8ff15152e8e523b7c50e6caa798b9b863d 100644
+--- a/toolkit/components/tor-launcher/TorProviderBuilder.sys.mjs
++++ b/toolkit/components/tor-launcher/TorProviderBuilder.sys.mjs
+@@ -410,11 +410,14 @@ export class TorProviderBuilder {
+     // using an environment variable.
+     let provider = TorProviders.tor;
+     const kEnvName = "TOR_PROVIDER";
++    // VEIL: there is no way to run without Tor. TOR_PROVIDER=none is
++    // ignored; the mock provider exists only for automated tests.
+     if (
+       Services.env.exists(kEnvName) &&
+-      Services.env.get(kEnvName) in TorProviders
++      Services.env.get(kEnvName) === "mock" &&
++      Cu.isInAutomation
+     ) {
+-      provider = TorProviders[Services.env.get(kEnvName)];
++      provider = TorProviders.mock;
+     }
+     return provider;
+   }

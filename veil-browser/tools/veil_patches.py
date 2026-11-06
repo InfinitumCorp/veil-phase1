@@ -49,7 +49,7 @@ def read_series(patch_dir: Path) -> list[Path]:
     return entries
 
 
-def parse_patch(path: Path) -> PatchInfo:
+def parse_patch(path: Path, pending: bool = False) -> PatchInfo:
     info = PatchInfo(path)
     text = path.read_text(errors="replace")
     header = text.split("\n---\n", 1)[0]  # commit message part only
@@ -92,7 +92,8 @@ def parse_patch(path: Path) -> PatchInfo:
     if len(distinct) != len(emails):
         info.errors.append("the same reviewer is listed more than once")
     needed = 2 if info.tag in TWO_REVIEWER_TAGS else 1
-    if len(distinct) < needed:
+    # Pending patches are awaiting review: everything else is enforced.
+    if len(distinct) < needed and not pending:
         info.errors.append(f"tag '{info.tag}' needs {needed} distinct reviewer(s), found {len(distinct)}")
 
     if "\ndiff --git " not in text:
@@ -100,7 +101,7 @@ def parse_patch(path: Path) -> PatchInfo:
     return info
 
 
-def lint(patch_dir: Path) -> int:
+def lint(patch_dir: Path, pending: bool = False) -> int:
     try:
         series = read_series(patch_dir)
     except FileNotFoundError as exc:
@@ -119,13 +120,15 @@ def lint(patch_dir: Path) -> int:
             print(f"FAIL {path.name}: listed in series but missing")
             failures += 1
             continue
-        info = parse_patch(path)
+        info = parse_patch(path, pending)
         if info.errors:
             failures += 1
             for err in info.errors:
                 print(f"FAIL {path.name}: {err}")
         else:
-            print(f"ok   {path.name} [{info.tag}] {info.subject}")
+            needed = 2 if info.tag in TWO_REVIEWER_TAGS else 1
+            waiting = f" (awaiting {needed - len(set(info.reviewers))} review(s))" if pending and len(set(info.reviewers)) < needed else ""
+            print(f"ok   {path.name} [{info.tag}] {info.subject}{waiting}")
 
     for stray in sorted(p.name for p in patch_dir.glob("*.patch")):
         if stray not in listed:
@@ -136,8 +139,8 @@ def lint(patch_dir: Path) -> int:
     return 1 if failures else 0
 
 
-def apply(patch_dir: Path, checkout: Path) -> int:
-    if lint(patch_dir) != 0:
+def apply(patch_dir: Path, checkout: Path, pending: bool = False) -> int:
+    if lint(patch_dir, pending) != 0:
         print("apply: refusing to apply a series that fails lint", file=sys.stderr)
         return 1
     for path in read_series(patch_dir):
@@ -182,14 +185,16 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Manage the VEIL patch series")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("lint"); p.add_argument("patch_dir", type=Path)
+    p.add_argument("--pending", action="store_true", help="series awaiting review: don't require Reviewed-by")
     p = sub.add_parser("apply"); p.add_argument("patch_dir", type=Path); p.add_argument("checkout", type=Path)
+    p.add_argument("--pending", action="store_true", help="apply a series awaiting review (development only)")
     p = sub.add_parser("new"); p.add_argument("patch_dir", type=Path)
     p.add_argument("--tag", required=True); p.add_argument("--subject", required=True)
     args = ap.parse_args(argv)
     if args.cmd == "lint":
-        return lint(args.patch_dir)
+        return lint(args.patch_dir, args.pending)
     if args.cmd == "apply":
-        return apply(args.patch_dir, args.checkout)
+        return apply(args.patch_dir, args.checkout, args.pending)
     return new(args.patch_dir, args.tag, args.subject)
 
 

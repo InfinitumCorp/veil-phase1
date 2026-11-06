@@ -1,0 +1,1564 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Infinitum Corporation <info@theinfinitumcorporation.com>
+Date: Fri, 6 Nov 2026 00:00:00 +0000
+Subject: [PATCH 2/5] VEIL start page, sign-in and app side panel
+
+Add browser/components/veil: VEIL's start page (about:veil-home), the
+Cumulus://ID sign-in flow, and the side panel for VEIL's apps.
+
+- about:veil-home is registered like about:tor (same flags, so it runs in
+  an unprivileged content process) and replaces it as home, new tab and
+  welcome page.
+- Its actor talks to the page only through RemotePageChild, limited by
+  RemotePageAccessManager to the messages in veil-chrome's bridge.js.
+- VeilBrowser starts in BrowserGlue._beforeUIStartup and sets up each
+  window from browser-init.js; the "Anonymous" chip sits in front of the
+  address bar.
+- The app registry is not part of this patch: bootstrap.sh writes it
+  from the signed registry (registry_tool.py build), and the build fails
+  if it is missing.
+
+VEIL-Tag: chrome
+VEIL-Reason: VEIL's start page and apps replace about:tor
+---
+ browser/app/profile/000-tor-browser.js        |   2 +-
+ browser/base/content/browser-init.js          |   5 +
+ browser/base/content/browser.xhtml            |   1 +
+ .../base/content/navigator-toolbox.inc.xhtml  |   1 +
+ browser/components/BrowserGlue.sys.mjs        |  10 +
+ .../components/DesktopActorRegistry.sys.mjs   |  16 ++
+ browser/components/about/AboutRedirector.cpp  |   5 +-
+ browser/components/about/components.conf      |   1 +
+ browser/components/moz.build                  |   1 +
+ .../veil/AboutVeilHomeChild.sys.mjs           |   9 +
+ .../veil/AboutVeilHomeParent.sys.mjs          |  85 +++++++
+ browser/components/veil/VeilAppPanel.sys.mjs  | 120 ++++++++++
+ browser/components/veil/VeilBrowser.sys.mjs   | 118 ++++++++++
+ browser/components/veil/VeilCumulusID.sys.mjs | 214 ++++++++++++++++++
+ browser/components/veil/VeilSidePanel.sys.mjs |  62 +++++
+ browser/components/veil/VeilSignIn.sys.mjs    | 101 +++++++++
+ .../veil/content/generated/.gitignore         |   3 +
+ .../components/veil/content/home/home.html    |  56 +++++
+ browser/components/veil/content/home/home.js  | 178 +++++++++++++++
+ .../components/veil/content/shared/bridge.js  |  65 ++++++
+ .../components/veil/content/shared/veil.css   | 165 ++++++++++++++
+ .../components/veil/content/veil-browser.css  |  28 +++
+ browser/components/veil/jar.mn                |  12 +
+ browser/components/veil/moz.build             |  18 ++
+ .../modules/RemotePageAccessManager.sys.mjs   |  16 ++
+ 25 files changed, 1290 insertions(+), 2 deletions(-)
+ create mode 100644 browser/components/veil/AboutVeilHomeChild.sys.mjs
+ create mode 100644 browser/components/veil/AboutVeilHomeParent.sys.mjs
+ create mode 100644 browser/components/veil/VeilAppPanel.sys.mjs
+ create mode 100644 browser/components/veil/VeilBrowser.sys.mjs
+ create mode 100644 browser/components/veil/VeilCumulusID.sys.mjs
+ create mode 100644 browser/components/veil/VeilSidePanel.sys.mjs
+ create mode 100644 browser/components/veil/VeilSignIn.sys.mjs
+ create mode 100644 browser/components/veil/content/generated/.gitignore
+ create mode 100644 browser/components/veil/content/home/home.html
+ create mode 100644 browser/components/veil/content/home/home.js
+ create mode 100644 browser/components/veil/content/shared/bridge.js
+ create mode 100644 browser/components/veil/content/shared/veil.css
+ create mode 100644 browser/components/veil/content/veil-browser.css
+ create mode 100644 browser/components/veil/jar.mn
+ create mode 100644 browser/components/veil/moz.build
+
+diff --git a/browser/app/profile/000-tor-browser.js b/browser/app/profile/000-tor-browser.js
+index eefac5aee41a6835032af58d2fe962d3dd070b95..9a91f8c88b33e9e75c1c22b679f96c578a0cd742 100644
+--- a/browser/app/profile/000-tor-browser.js
++++ b/browser/app/profile/000-tor-browser.js
+@@ -58,7 +58,7 @@ pref("network.http.connection-retry-timeout", 0);
+ pref("extensions.torbutton.use_nontor_proxy", false);
+ 
+ // Browser home page
+-pref("browser.startup.homepage", "about:tor");
++pref("browser.startup.homepage", "about:veil-home");
+ 
+ // tor-browser#43864, tor-browser#40899: general browser support url.
+ pref("browser.base-browser-support-url", "https://support.torproject.org/tor-browser");
+diff --git a/browser/base/content/browser-init.js b/browser/base/content/browser-init.js
+index 8db1d386a64fd9351a8227507be049e46d0315bf..f44165e452b2686aaadac12c7242f1fb983a65f4 100644
+--- a/browser/base/content/browser-init.js
++++ b/browser/base/content/browser-init.js
+@@ -366,6 +366,11 @@ var gBrowserInit = {
+ 
+     gTorCircuitPanel.init();
+ 
++    // VEIL: this window's side panel and Anonymous chip.
++    ChromeUtils.importESModule(
++      "moz-src:///browser/components/veil/VeilBrowser.sys.mjs"
++    ).VeilBrowser.onWindowLoaded(window);
++
+     // Certain kinds of automigration rely on this notification to complete
+     // their tasks BEFORE the browser window is shown. SessionStore uses it to
+     // restore tabs into windows AFTER important parts like gMultiProcessBrowser
+diff --git a/browser/base/content/browser.xhtml b/browser/base/content/browser.xhtml
+index f7ed57858d9b1121e99bcae869ad9592c88b68da..d6cb0b47a613fd90075b9c130cd2f86837d171e4 100644
+--- a/browser/base/content/browser.xhtml
++++ b/browser/base/content/browser.xhtml
+@@ -39,6 +39,7 @@
+     href="chrome://browser/content/usercontext/usercontext.css"
+   />
+   <link rel="stylesheet" href="chrome://browser/skin/" />
++  <link rel="stylesheet" href="chrome://browser/content/veil/veil-browser.css" />
+ 
+   <link rel="stylesheet" href="chrome://browser/skin/controlcenter/panel.css" />
+   <link
+diff --git a/browser/base/content/navigator-toolbox.inc.xhtml b/browser/base/content/navigator-toolbox.inc.xhtml
+index a6f88f0b6410037e638bca488c7491a72c72073c..9f7cc8c9bcc94f07a4988631e993f297348f2cb5 100644
+--- a/browser/base/content/navigator-toolbox.inc.xhtml
++++ b/browser/base/content/navigator-toolbox.inc.xhtml
+@@ -200,6 +200,7 @@
+                     data-l10n-id="urlbar-view-context-menu-open-in-private-window"/>
+         </menupopup>
+         <toolbartabstop/>
++        <html:div id="veil-anonymous-chip" role="status">Anonymous</html:div>
+         <html:moz-urlbar id="urlbar"
+               class="urlbar"
+               popover="manual"
+diff --git a/browser/components/BrowserGlue.sys.mjs b/browser/components/BrowserGlue.sys.mjs
+index bae515e6147cc8ef9278f83f20044be207521984..13112da9038f621cdbbefa7ce5fa50a5e3b7ce81 100644
+--- a/browser/components/BrowserGlue.sys.mjs
++++ b/browser/components/BrowserGlue.sys.mjs
+@@ -377,6 +377,16 @@ BrowserGlue.prototype = {
+   _beforeUIStartup: function BG__beforeUIStartup() {
+     lazy.SessionStartup.init();
+ 
++    // VEIL: registry, sign-in and side panels, before the first window.
++    // A failure here must not stop the browser from starting.
++    try {
++      ChromeUtils.importESModule(
++        "moz-src:///browser/components/veil/VeilBrowser.sys.mjs"
++      ).VeilBrowser.init();
++    } catch (e) {
++      console.error("VEIL: VeilBrowser.init failed", e);
++    }
++
+     // check if we're in safe mode
+     if (Services.appinfo.inSafeMode) {
+       Services.ww.openWindow(
+diff --git a/browser/components/DesktopActorRegistry.sys.mjs b/browser/components/DesktopActorRegistry.sys.mjs
+index 3a3ecd2fe2cf90a643f23af4a0f57c911cad490c..d6a73db6db7f2024d5eae3ee9ba5b4b50ac52650 100644
+--- a/browser/components/DesktopActorRegistry.sys.mjs
++++ b/browser/components/DesktopActorRegistry.sys.mjs
+@@ -244,6 +244,22 @@ let JSWINDOWACTORS = {
+     matches: ["about:tor"],
+   },
+ 
++  AboutVeilHome: {
++    parent: {
++      esModuleURI:
++        "moz-src:///browser/components/veil/AboutVeilHomeParent.sys.mjs",
++    },
++    child: {
++      esModuleURI:
++        "moz-src:///browser/components/veil/AboutVeilHomeChild.sys.mjs",
++      events: {
++        DOMWindowCreated: {},
++      },
++    },
++
++    matches: ["about:veil-home"],
++  },
++
+   AboutWelcome: {
+     parent: {
+       esModuleURI: "resource:///actors/AboutWelcomeParent.sys.mjs",
+diff --git a/browser/components/about/AboutRedirector.cpp b/browser/components/about/AboutRedirector.cpp
+index 4c91fff5d14a082a33eadbd0f9a5403b7950adf9..f0cbd53bc61a26cc419c5e4459033e145089919c 100644
+--- a/browser/components/about/AboutRedirector.cpp
++++ b/browser/components/about/AboutRedirector.cpp
+@@ -36,7 +36,8 @@
+ // where "about:newtab" or other URIs appear.
+ // The advantage is that we maintain more control against changes in
+ // mozilla-central.
+-#define BASE_BROWSER_HOME_PAGE_URL "about:tor"
++// VEIL: home, new tab and welcome open VEIL's start page.
++#define BASE_BROWSER_HOME_PAGE_URL "about:veil-home"
+ 
+ namespace mozilla {
+ namespace browser {
+@@ -195,6 +196,8 @@ static const RedirEntry kRedirMap[] = {
+          nsIAboutModule::URI_CAN_LOAD_IN_PRIVILEGEDABOUT_PROCESS},
+     {"tor", "chrome://browser/content/abouttor/aboutTor.html",
+      BASE_BROWSER_HOME_PAGE_FLAGS},
++    {"veil-home", "chrome://browser/content/veil/home/home.html",
++     BASE_BROWSER_HOME_PAGE_FLAGS},
+     {"torconnect", "chrome://browser/content/torconnect/aboutTorConnect.html",
+      nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
+          nsIAboutModule::URI_CAN_LOAD_IN_CHILD | nsIAboutModule::ALLOW_SCRIPT |
+diff --git a/browser/components/about/components.conf b/browser/components/about/components.conf
+index d82f0e00cf09759f6845bed31bc22fe670c63387..9f878d9c0e5b9ebbca0de5b16e2051a2a07210fe 100644
+--- a/browser/components/about/components.conf
++++ b/browser/components/about/components.conf
+@@ -32,6 +32,7 @@ pages = [
+     'tor',
+     'torconnect',
+     'unloads',
++    'veil-home',
+     'welcome',
+     'welcomeback',
+ ]
+diff --git a/browser/components/moz.build b/browser/components/moz.build
+index b4d42444483b8e7fcdb09077d434a40ce1f20e08..fb6821e6700934b4861177e79df38b3d0d04a7d5 100644
+--- a/browser/components/moz.build
++++ b/browser/components/moz.build
+@@ -84,6 +84,7 @@ DIRS += [
+     "translations",
+     "uitour",
+     "urlbar",
++    "veil",
+     "webrtc",
+     "torcircuit",
+     "torpreferences",
+diff --git a/browser/components/veil/AboutVeilHomeChild.sys.mjs b/browser/components/veil/AboutVeilHomeChild.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..c247ba78df15ff81b53fa52fbfb70157b8602607
+--- /dev/null
++++ b/browser/components/veil/AboutVeilHomeChild.sys.mjs
+@@ -0,0 +1,9 @@
++/* about:veil-home, content side (patch 0002).
++ *
++ * RemotePageChild exposes RPMSendAsyncMessage / RPMAddMessageListener to the
++ * page, limited to the messages RemotePageAccessManager allows for
++ * about:veil-home. The start page's bridge.js uses exactly those.
++ */
++import { RemotePageChild } from "resource://gre/actors/RemotePageChild.sys.mjs";
++
++export class AboutVeilHomeChild extends RemotePageChild {}
+diff --git a/browser/components/veil/AboutVeilHomeParent.sys.mjs b/browser/components/veil/AboutVeilHomeParent.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..b4136d17709bacf5524092e01788616e2b57a605
+--- /dev/null
++++ b/browser/components/veil/AboutVeilHomeParent.sys.mjs
+@@ -0,0 +1,85 @@
++/* about:veil-home, parent side (patch 0002).
++ *
++ * Answers the start page's bridge messages. The page can only send the
++ * messages listed in RemotePageAccessManager for about:veil-home (see
++ * PATCH-NOTES.md), and every handler takes addresses from VEIL's own
++ * registry, never from the page.
++ */
++const lazy = {};
++ChromeUtils.defineESModuleGetters(lazy, {
++  PlacesUtils: "resource://gre/modules/PlacesUtils.sys.mjs",
++  TorConnect: "moz-src:///toolkit/modules/TorConnect.sys.mjs",
++  TorDomainIsolator: "moz-src:///toolkit/components/tor-launcher/TorDomainIsolator.sys.mjs",
++  VeilBrowser: "moz-src:///browser/components/veil/VeilBrowser.sys.mjs",
++  VeilSignIn: "moz-src:///browser/components/veil/VeilSignIn.sys.mjs",
++});
++
++// TorConnectStage names (toolkit/modules/TorConnect.sys.mjs, ESR 153) -> the
++// three states the start page shows. Anything else is still connecting.
++const TOR_STATES = {
++  Bootstrapped: "connected",
++  Offline: "error",
++  FinalError: "error",
++  ProviderStopped: "error",
++  RegionNotFound: "error",
++};
++
++export class AboutVeilHomeParent extends JSWindowActorParent {
++  #unsubscribe = null;
++
++  actorCreated() {
++    this.#unsubscribe = lazy.VeilSignIn.subscribe(account => this.#send("VEIL:Account", account));
++  }
++
++  didDestroy() {
++    this.#unsubscribe?.();
++  }
++
++  #send(name, data) {
++    try { this.sendAsyncMessage(name, data); } catch { /* page already gone */ }
++  }
++
++  get #window() {
++    return this.browsingContext.topChromeWindow;
++  }
++
++  async receiveMessage({ name, data }) {
++    switch (name) {
++      case "VEIL:GetTorStatus": {
++        const state = TOR_STATES[lazy.TorConnect.stageName] || "connecting";
++        this.#send("VEIL:TorStatus", { state });
++        break;
++      }
++      case "VEIL:GetBookmarks": {
++        const tree = await lazy.PlacesUtils.promiseBookmarksTree(lazy.PlacesUtils.bookmarks.toolbarGuid);
++        const items = (tree.children || []).filter(c => c.uri && /^https?:/.test(c.uri)).slice(0, 12)
++          .map(c => ({ title: c.title || "", url: c.uri }));
++        this.#send("VEIL:Bookmarks", { items });
++        break;
++      }
++      case "VEIL:GetAccount":
++        this.#send("VEIL:Account", lazy.VeilSignIn.account());
++        break;
++      case "VEIL:OpenSignIn":
++        await lazy.VeilSignIn.open({
++          registry: lazy.VeilBrowser.registry,
++          cumulusId: lazy.VeilBrowser.cumulusId(),
++          openTab: url => {
++            const gBrowser = this.#window.gBrowser;
++            gBrowser.selectedTab = gBrowser.addTrustedTab(url);
++          },
++        });
++        break;
++      case "VEIL:OpenAppPanel":
++        // Only the id is used; VeilAppPanel looks the address up in the registry.
++        lazy.VeilBrowser.appPanelFor(this.#window)?.handle({ name, data: { id: data?.id } });
++        break;
++      case "VEIL:NewIdentity":
++        this.#window.NewIdentityButton?.onCommand();      // Tor Browser's own New Identity
++        break;
++      case "VEIL:NewCircuit":
++        lazy.TorDomainIsolator.newCircuitForBrowser(this.#window.gBrowser.selectedBrowser);
++        break;
++    }
++  }
++}
+diff --git a/browser/components/veil/VeilAppPanel.sys.mjs b/browser/components/veil/VeilAppPanel.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb86d57bfdbfc45199d01e80f0a7e3c994d572fc
+--- /dev/null
++++ b/browser/components/veil/VeilAppPanel.sys.mjs
+@@ -0,0 +1,120 @@
++/* VEIL app panel: Infinitum apps run in a side panel, like ChatGPT's sidebar.
++ *
++ * Clicking /CNDCTR/ or SCALVS.ai on the start page opens that app in a panel
++ * docked to the right of the window, next to whatever page the user is on,
++ * instead of navigating away. Clicking the same app again closes the panel;
++ * clicking the other app switches the panel to it.
++ *
++ * Security rules this module enforces:
++ *  - The start page sends only an app id. The address comes from the signed
++ *    app registry bundled with the browser, never from the page, so a
++ *    spoofed page cannot load a look-alike app into the panel.
++ *  - Only https:// addresses with no embedded credentials are loaded.
++ *  - The panel is an ordinary web content browser: it goes over Tor like
++ *    every other connection, and New Identity closes it and clears its
++ *    session with everything else.
++ *
++ * Browser glue (patch 0002, [chrome]) supplies a `panel` object backed by a
++ * remote <browser> element in the sidebar box:
++ *   panel.show({ url, title })  load url and show the panel
++ *   panel.hide()                hide the panel and unload its page
++ *   panel.setWidth(px)          resize the panel
++ * and calls VeilAppPanel.handle(message) for "VEIL:OpenAppPanel".
++ */
++
++export class AppPanelError extends Error {}
++
++export const DEFAULT_WIDTH = 420;
++export const MIN_WIDTH = 320;
++export const MAX_WIDTH = 720;
++
++const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
++
++/**
++ * Look up an app in a verified registry and return its safe address.
++ * allowLoopbackHttp lets the local prototype use http://localhost; the real
++ * browser never sets it.
++ */
++export function appEntry(registry, id, { allowLoopbackHttp = false } = {}) {
++  const apps = registry && Array.isArray(registry.apps) ? registry.apps : [];
++  const app = apps.find(a => a && a.id === id);
++  if (!app) throw new AppPanelError(`no app with id '${id}' in this build`);
++  if (app.panel !== true) throw new AppPanelError(`app '${id}' doesn't open in the side panel`);
++  let url;
++  try {
++    url = new URL(app.url);
++  } catch {
++    throw new AppPanelError(`app '${id}' has an invalid address`);
++  }
++  const loopbackOk = allowLoopbackHttp && url.protocol === "http:" && LOOPBACK.has(url.hostname);
++  if (url.protocol !== "https:" && !loopbackOk) throw new AppPanelError(`app '${id}' must use https`);
++  if (url.username || url.password) throw new AppPanelError(`app '${id}' address must not carry credentials`);
++  return { id: app.id, title: app.name, url: url.href };
++}
++
++export const clampWidth = px =>
++  Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, Math.round(Number.isFinite(px) ? px : DEFAULT_WIDTH)));
++
++export class AppPanel {
++  constructor({ registry, panel, allowLoopbackHttp = false }) {
++    this.registry = registry;
++    this.loopback = { allowLoopbackHttp };
++    this.panel = panel;
++    this.openId = null;
++    this.width = DEFAULT_WIDTH;
++  }
++
++  /** Open an app, switch to it, or close it if it is already open. */
++  toggle(id) {
++    if (this.openId === id) {
++      this.close();
++      return null;
++    }
++    const entry = appEntry(this.registry, id, this.loopback);
++    if (this.openId === null) this.panel.setWidth(this.width);
++    this.panel.show({ url: entry.url, title: entry.title });
++    this.openId = id;
++    return entry;
++  }
++
++  /**
++   * Open an app with a prompt typed in the address bar (VeilAppCommands).
++   * Always opens (never toggles closed); the prompt rides in the URL
++   * fragment, which is never sent to a server.
++   */
++  openWithPrompt(id, prompt) {
++    const entry = appEntry(this.registry, id, this.loopback);
++    const url = new URL(entry.url);
++    url.hash = prompt ? `prompt=${encodeURIComponent(prompt)}` : "";
++    if (this.openId === null) this.panel.setWidth(this.width);
++    this.panel.show({ url: url.href, title: entry.title });
++    this.openId = id;
++    return { ...entry, url: url.href };
++  }
++
++  close() {
++    if (this.openId === null) return;
++    this.panel.hide();
++    this.openId = null;
++  }
++
++  /** The user dragged the panel edge. */
++  resize(px) {
++    this.width = clampWidth(px);
++    if (this.openId !== null) this.panel.setWidth(this.width);
++    return this.width;
++  }
++
++  /** New Identity closes the panel along with every other session. */
++  onNewIdentity() {
++    this.close();
++  }
++
++  /** Entry point for the start page's bridge message. */
++  handle(message) {
++    if (!message || message.name !== "VEIL:OpenAppPanel") return null;
++    const id = message.data && message.data.id;
++    if (typeof id !== "string") throw new AppPanelError("message carries no app id");
++    return this.toggle(id);
++  }
++}
+diff --git a/browser/components/veil/VeilBrowser.sys.mjs b/browser/components/veil/VeilBrowser.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..ed5f98e7bc4c3cfdff0cfe6132fe5e834411f26d
+--- /dev/null
++++ b/browser/components/veil/VeilBrowser.sys.mjs
+@@ -0,0 +1,118 @@
++/* VEIL browser hub: wires VEIL's modules into Tor Browser (patches 0002-0006).
++ *
++ * Called from Tor Browser (patch 0002):
++ *   VeilBrowser.init()               BrowserGlue._beforeUIStartup, before any window
++ *   VeilBrowser.onWindowLoaded(win)  browser-init.js onLoad, for each browser window
++ *
++ * The address-bar provider for @scalvs / @cndctr is registered by Firefox's
++ * own provider list (UrlbarProvidersManager, patch 0006), not from here.
++ *
++ * Responsibilities:
++ *  - load the signed app registry bundled with the browser;
++ *  - start the anonymity guard (fail closed if Tor settings are weakened);
++ *  - give each window its side panel and a VeilAppPanel driving it;
++ *  - keep the address bar's "Anonymous" chip in step with sign-in;
++ *  - run Cumulus://ID sign-in, catching the redirect before it is sent;
++ *  - forget everything VEIL keeps (sign-in, panels) on New Identity.
++ */
++const lazy = {};
++ChromeUtils.defineESModuleGetters(lazy, {
++  AppPanel: "moz-src:///browser/components/veil/VeilAppPanel.sys.mjs",
++  CumulusID: "moz-src:///browser/components/veil/VeilCumulusID.sys.mjs",
++  VeilSignIn: "moz-src:///browser/components/veil/VeilSignIn.sys.mjs",
++  createSidePanel: "moz-src:///browser/components/veil/VeilSidePanel.sys.mjs",
++});
++
++// Verified and written into the tree at build time by registry_tool.py build.
++const REGISTRY_URL = "chrome://browser/content/veil/generated/registry.json";
++// Tor Browser's NewIdentityButton announces New Identity on this topic.
++const NEW_IDENTITY_TOPIC = "new-identity-requested";
++
++const panels = new WeakMap();      // window -> AppPanel
++let registry = { apps: [] };
++let cumulusId = null;
++
++function loadRegistry() {
++  const xhr = new XMLHttpRequest();          // chrome:// is local and synchronous-safe at startup
++  xhr.open("GET", REGISTRY_URL, false);
++  xhr.overrideMimeType("application/json");
++  xhr.send();
++  return JSON.parse(xhr.responseText);
++}
++
++/** Catch the Cumulus://ID redirect before the request leaves the browser. */
++const redirectObserver = {
++  observe(subject) {
++    if (!cumulusId || !cumulusId.enabled) return;
++    const channel = subject.QueryInterface(Ci.nsIHttpChannel);
++    const url = channel.URI.spec;
++    if (!cumulusId.isRedirect(url)) return;
++    channel.cancel(Cr.NS_BINDING_ABORTED);    // the code never goes to any server
++    const browser = channel.loadInfo?.browsingContext?.top?.embedderElement;
++    const win = browser?.ownerGlobal;
++    const tab = win?.gBrowser?.getTabForBrowser(browser);
++    if (tab) win.gBrowser.removeTab(tab);
++    lazy.VeilSignIn.finish({ cumulusId, address: url }).catch(err => {
++      Services.obs.notifyObservers(null, "veil-sign-in-failed", err.message);
++    });
++  },
++};
++
++export const VeilBrowser = {
++  get registry() {
++    return registry;
++  },
++
++  init() {
++    registry = loadRegistry();
++    cumulusId = new lazy.CumulusID({
++      registry,
++      openTab: (url, opts) => {
++        const win = Services.wm.getMostRecentBrowserWindow();
++        win.gBrowser.selectedTab = win.gBrowser.addTrustedTab(url, opts);
++      },
++      // The parent process's fetch goes through Tor like everything else.
++      fetch: (url, init) => fetch(url, init),
++    });
++    Services.obs.addObserver(redirectObserver, "http-on-modify-request");
++    Services.obs.addObserver(() => this.onNewIdentity(), NEW_IDENTITY_TOPIC);
++  },
++
++  onWindowLoaded(win) {
++    let appPanel;
++    const side = lazy.createSidePanel(win, {
++      onClose: () => appPanel.close(),
++      onOpenInTab: () => {
++        const app = registry.apps.find(a => a.id === appPanel.openId);
++        appPanel.close();
++        if (app) win.gBrowser.selectedTab = win.gBrowser.addTrustedTab(app.url);
++      },
++      onResize: px => appPanel.resize(px),
++    });
++    appPanel = new lazy.AppPanel({ registry, panel: side });
++    panels.set(win, appPanel);
++
++    // The "Anonymous" chip: anonymous unless signed in to Cumulus://ID.
++    const chip = win.document.getElementById("veil-anonymous-chip");
++    if (chip) {
++      const unsubscribe = lazy.VeilSignIn.subscribe(account => {
++        chip.textContent = account ? "Signed in" : "Anonymous";
++        chip.toggleAttribute("signed-in", !!account);
++      });
++      win.addEventListener("unload", unsubscribe, { once: true });
++    }
++  },
++
++  appPanelFor(win) {
++    return panels.get(win);
++  },
++
++  cumulusId() {
++    return cumulusId;
++  },
++
++  onNewIdentity() {
++    for (const win of Services.wm.getEnumerator("navigator:browser")) panels.get(win)?.onNewIdentity();
++    lazy.VeilSignIn.onNewIdentity(cumulusId);
++  },
++};
+diff --git a/browser/components/veil/VeilCumulusID.sys.mjs b/browser/components/veil/VeilCumulusID.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb2c7887f652eba45d4a04c5f0fa0f845aa43134
+--- /dev/null
++++ b/browser/components/veil/VeilCumulusID.sys.mjs
+@@ -0,0 +1,214 @@
++/* VEIL sign-in with Cumulus://ID.
++ *
++ * "Sign In" on the start page runs a standard OpenID Connect sign-in
++ * (authorization code flow with PKCE, RFC 7636) against Cumulus://ID:
++ *
++ *   1. VEIL opens the Cumulus://ID sign-in page in a new tab. The user signs
++ *      in there, on Cumulus://ID's own page, so VEIL never sees a password.
++ *   2. Cumulus://ID redirects the tab to VEIL's redirect address with a
++ *      one-time code. The browser catches that navigation before it loads,
++ *      closes the tab and hands the address to handleRedirect().
++ *   3. VEIL exchanges the code (plus the PKCE secret only it knows) for an ID
++ *      token at the token endpoint, checks the token, and shows the user as
++ *      signed in.
++ *
++ * Anonymity: every request above goes over Tor, so Cumulus://ID learns who
++ * the user is (they signed in) but never their IP address or location.
++ * Tokens live in memory only, never on disk, and New Identity forgets them.
++ *
++ * Configuration comes from the signed app registry (registry.signin.cid), so
++ * a spoofed page cannot redirect sign-in to a look-alike service:
++ *   { "issuer":        "https://id.cumulus.example",
++ *     "authorize_url": "https://id.cumulus.example/authorize",
++ *     "token_url":     "https://id.cumulus.example/token",
++ *     "client_id":     "veil-browser",
++ *     "redirect_uri":  "https://id.cumulus.example/veil/callback" }
++ * Until Cumulus://ID publishes these, the registry has no "cid" block and
++ * Sign In opens the Cumulus://ID page instead (see VeilSignIn).
++ */
++
++export class CumulusIDError extends Error {}
++
++export const SCOPE = "openid profile";
++export const PENDING_TTL_MS = 10 * 60 * 1000;   // a sign-in must finish within 10 minutes
++export const CLOCK_SKEW_S = 120;
++
++const FIELDS = ["issuer", "authorize_url", "token_url", "client_id", "redirect_uri"];
++
++const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
++
++/**
++ * Validate the "cid" block from the registry. allowLoopbackHttp lets the
++ * local prototype use http://localhost; the real browser never sets it.
++ */
++export function readConfig(registry, { allowLoopbackHttp = false } = {}) {
++  const cid = registry && registry.signin && registry.signin.cid;
++  if (!cid) return null;
++  for (const f of FIELDS) {
++    if (typeof cid[f] !== "string" || !cid[f]) throw new CumulusIDError(`cid.${f} is missing`);
++  }
++  for (const f of ["issuer", "authorize_url", "token_url", "redirect_uri"]) {
++    const u = new URL(cid[f]);
++    const loopbackOk = allowLoopbackHttp && u.protocol === "http:" && LOOPBACK.has(u.hostname);
++    if ((u.protocol !== "https:" && !loopbackOk) || u.username || u.password) {
++      throw new CumulusIDError(`cid.${f} must be a plain https:// address`);
++    }
++  }
++  return { ...cid };
++}
++
++const b64url = bytes =>
++  btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
++
++function b64urlDecode(text) {
++  const pad = "=".repeat((4 - (text.length % 4)) % 4);
++  const bin = atob(text.replace(/-/g, "+").replace(/_/g, "/") + pad);
++  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
++}
++
++const randomToken = crypto => b64url(crypto.getRandomValues(new Uint8Array(32)));
++
++export async function pkceChallenge(verifier, crypto = globalThis.crypto) {
++  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
++  return b64url(new Uint8Array(digest));
++}
++
++/** Read the claims of an ID token (structure only; see checkClaims). */
++export function decodeIdToken(jwt) {
++  const parts = typeof jwt === "string" ? jwt.split(".") : [];
++  if (parts.length !== 3) throw new CumulusIDError("ID token is malformed");
++  try {
++    return JSON.parse(b64urlDecode(parts[1]));
++  } catch {
++    throw new CumulusIDError("ID token payload is unreadable");
++  }
++}
++
++/**
++ * Check ID token claims. The token comes straight from the token endpoint
++ * over TLS, which OpenID Connect Core 3.1.3.7 allows in place of checking its
++ * signature; issuer, audience, expiry and nonce are always checked.
++ */
++export function checkClaims(claims, { issuer, clientId, nonce, nowS }) {
++  if (claims.iss !== issuer) throw new CumulusIDError("ID token is from the wrong issuer");
++  const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
++  if (!aud.includes(clientId)) throw new CumulusIDError("ID token is not for VEIL");
++  if (aud.length > 1 && claims.azp !== clientId) throw new CumulusIDError("ID token azp is not VEIL");
++  if (typeof claims.exp !== "number" || claims.exp + CLOCK_SKEW_S < nowS) throw new CumulusIDError("ID token has expired");
++  if (typeof claims.iat === "number" && claims.iat - CLOCK_SKEW_S > nowS) throw new CumulusIDError("ID token is from the future");
++  if (claims.nonce !== nonce) throw new CumulusIDError("ID token nonce does not match");
++  if (typeof claims.sub !== "string" || !claims.sub) throw new CumulusIDError("ID token has no subject");
++}
++
++export class CumulusID {
++  /**
++   * deps: { registry, openTab(url, opts), fetch(url, init), now(), crypto }
++   * fetch must be the browser's own fetch, which goes over Tor.
++   */
++  constructor({ registry, openTab, fetch, now = () => Date.now(), crypto = globalThis.crypto, allowLoopbackHttp = false }) {
++    this.config = readConfig(registry, { allowLoopbackHttp });
++    this.openTab = openTab;
++    this.fetch = fetch;
++    this.now = now;
++    this.crypto = crypto;
++    this.pending = null;
++    this.session = null;      // { sub, name, idToken, accessToken, expiresAt } in memory only
++  }
++
++  get enabled() {
++    return this.config !== null;
++  }
++
++  /** Step 1: open the Cumulus://ID sign-in page. Returns the address opened. */
++  async start() {
++    if (!this.enabled) throw new CumulusIDError("Cumulus://ID is not configured in this build");
++    const verifier = randomToken(this.crypto);
++    const state = randomToken(this.crypto);
++    const nonce = randomToken(this.crypto);
++    const challenge = await pkceChallenge(verifier, this.crypto);
++    this.pending = { verifier, state, nonce, startedAt: this.now() };
++
++    const url = new URL(this.config.authorize_url);
++    url.search = new URLSearchParams({
++      response_type: "code",
++      client_id: this.config.client_id,
++      redirect_uri: this.config.redirect_uri,
++      scope: SCOPE,
++      state,
++      nonce,
++      code_challenge: challenge,
++      code_challenge_method: "S256",
++    }).toString();
++    this.openTab(url.href, { inBackground: false, relatedToCurrent: true });
++    return url.href;
++  }
++
++  /** True if a navigation is the Cumulus://ID redirect back to VEIL. */
++  isRedirect(address) {
++    if (!this.enabled) return false;
++    try {
++      const u = new URL(address);
++      const r = new URL(this.config.redirect_uri);
++      return u.origin === r.origin && u.pathname === r.pathname;
++    } catch {
++      return false;
++    }
++  }
++
++  /** Steps 2-3: finish sign-in from the redirect address. Returns the account. */
++  async handleRedirect(address) {
++    if (!this.isRedirect(address)) throw new CumulusIDError("not the Cumulus://ID redirect address");
++    const pending = this.pending;
++    this.pending = null;                       // one use only, success or failure
++    if (!pending) throw new CumulusIDError("no sign-in was started");
++    if (this.now() - pending.startedAt > PENDING_TTL_MS) throw new CumulusIDError("sign-in took too long; try again");
++
++    const params = new URL(address).searchParams;
++    if (params.get("state") !== pending.state) throw new CumulusIDError("sign-in state does not match");
++    if (params.get("error")) throw new CumulusIDError(`Cumulus://ID refused sign-in: ${params.get("error")}`);
++    const code = params.get("code");
++    if (!code) throw new CumulusIDError("Cumulus://ID returned no code");
++
++    const response = await this.fetch(this.config.token_url, {
++      method: "POST",
++      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
++      body: new URLSearchParams({
++        grant_type: "authorization_code",
++        code,
++        redirect_uri: this.config.redirect_uri,
++        client_id: this.config.client_id,
++        code_verifier: pending.verifier,
++      }).toString(),
++      credentials: "omit",
++      referrerPolicy: "no-referrer",
++    });
++    if (!response.ok) throw new CumulusIDError(`token request failed (${response.status})`);
++    const tokens = await response.json();
++    if (!tokens || typeof tokens.id_token !== "string") throw new CumulusIDError("no ID token returned");
++
++    const claims = decodeIdToken(tokens.id_token);
++    const nowS = Math.floor(this.now() / 1000);
++    checkClaims(claims, { issuer: this.config.issuer, clientId: this.config.client_id, nonce: pending.nonce, nowS });
++
++    const name = [claims.name, claims.preferred_username, claims.email]
++      .find(v => typeof v === "string" && v.trim()) || "";
++    this.session = {
++      sub: claims.sub,
++      name: name.slice(0, 64),
++      idToken: tokens.id_token,
++      accessToken: typeof tokens.access_token === "string" ? tokens.access_token : null,
++      expiresAt: claims.exp * 1000,
++    };
++    return { signedIn: true, name: this.session.name };
++  }
++
++  signedIn() {
++    return this.session !== null && this.session.expiresAt > this.now();
++  }
++
++  /** Sign out, and New Identity: forget everything. */
++  forget() {
++    this.pending = null;
++    this.session = null;
++  }
++}
+diff --git a/browser/components/veil/VeilSidePanel.sys.mjs b/browser/components/veil/VeilSidePanel.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d7b6e6db6afb5e8b23ce05362d1e3184b64ef87
+--- /dev/null
++++ b/browser/components/veil/VeilSidePanel.sys.mjs
+@@ -0,0 +1,62 @@
++/* VEIL side panel: a docked web view for /CNDCTR/ and SCALVS.ai (patch 0002).
++ *
++ * Builds, per browser window, a resizable panel to the right of the page
++ * area and gives VeilAppPanel the { show, hide, setWidth } object it drives.
++ *
++ * The panel is an ordinary remote content <browser>:
++ *  - it loads over Tor like every tab, isolated by first-party domain;
++ *  - it is excluded from global history (disableglobalhistory);
++ *  - its page has no chrome privileges and can't reach VEIL internals;
++ *  - links that try to open new windows open as normal tabs.
++ */
++const XUL_NS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
++
++export function createSidePanel(win, { onClose, onOpenInTab, onResize }) {
++  const doc = win.document;
++  const container = doc.getElementById("browser");          // hbox: sidebar | appcontent
++  const make = (tag, attrs = {}) => {
++    const el = doc.createElementNS(XUL_NS, tag);
++    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
++    return el;
++  };
++
++  const splitter = make("splitter", { id: "veil-panel-splitter", resizebefore: "flex", resizeafter: "none", hidden: "true" });
++  const box = make("vbox", { id: "veil-panel", hidden: "true" });
++  const bar = make("hbox", { id: "veil-panel-bar", align: "center", pack: "end" });
++  const openInTab = make("toolbarbutton", { id: "veil-panel-open", class: "toolbarbutton-1", tooltiptext: "Open in a new tab" });
++  const close = make("toolbarbutton", { id: "veil-panel-close", class: "toolbarbutton-1 close-icon", tooltiptext: "Close panel" });
++  const browser = make("browser", {
++    id: "veil-panel-browser", type: "content", remote: "true", maychangeremoteness: "true",
++    disableglobalhistory: "true", messagemanagergroup: "veil-panel", flex: "1", autocompletepopup: "PopupAutoComplete",
++  });
++  bar.append(openInTab, close);
++  box.append(bar, browser);
++  container.append(splitter, box);
++
++  close.addEventListener("command", () => onClose());
++  openInTab.addEventListener("command", () => onOpenInTab(browser.currentURI?.spec));
++  splitter.addEventListener("mouseup", () => onResize(box.getBoundingClientRect().width));
++
++  return {
++    show({ url }) {
++      box.hidden = false;
++      splitter.hidden = false;
++      browser.fixupAndLoadURIString(url, {
++        triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
++        // No referrer: the app learns nothing about the page beside it.
++        referrerInfo: null,
++      });
++    },
++    hide() {
++      browser.loadURI(Services.io.newURI("about:blank"), {
++        triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
++      });
++      box.hidden = true;
++      splitter.hidden = true;
++    },
++    setWidth(px) {
++      box.style.width = `${px}px`;
++    },
++    browser,
++  };
++}
+diff --git a/browser/components/veil/VeilSignIn.sys.mjs b/browser/components/veil/VeilSignIn.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce9b0531a15aa67a21689dff456c4b3f48314f82
+--- /dev/null
++++ b/browser/components/veil/VeilSignIn.sys.mjs
+@@ -0,0 +1,101 @@
++/* VEIL Sign In: the browser side of the "Sign In" link on the start page.
++ *
++ * VEIL stays anonymous at the network level whether or not the user signs
++ * in: every connection, including sign-in, goes over Tor, so no site learns
++ * the user's IP address or location. Signing in tells only the Infinitum
++ * service (Cumulus://ID) who the user is, and New Identity clears that
++ * session like any other.
++ *
++ * Security rules this module enforces:
++ *  - The sign-in address comes from the signed app registry bundled with
++ *    the browser, never from the start page. A compromised or spoofed page
++ *    therefore cannot send the user to a look-alike sign-in site.
++ *  - Only https:// addresses are opened, in a normal new tab, so the user
++ *    sees the real address bar and the site's certificate.
++ *  - Nothing here reads, stores or fills passwords.
++ *
++ * Sign In goes to Cumulus://ID:
++ *  - When the registry carries Cumulus://ID's sign-in addresses
++ *    (registry.signin.cid), Sign In runs the full Cumulus://ID sign-in
++ *    (VeilCumulusID.sys.mjs) and the start page shows the user signed in.
++ *  - Until then, Sign In opens the Cumulus://ID page (registry.signin.url).
++ *
++ * Wired up by patch 0002 ([chrome]) in the about:veil-home parent actor:
++ *   case "VEIL:OpenSignIn": await VeilSignIn.open({ registry, openTab, cumulusId }); break;
++ *   case "VEIL:GetAccount": reply("VEIL:Account", VeilSignIn.account()); break;
++ * and in a navigation listener on every tab:
++ *   if (cumulusId.isRedirect(url)) { cancel(); closeTab();
++ *     await VeilSignIn.finish({ cumulusId, address: url }); }
++ */
++
++export class SignInError extends Error {}
++
++/** Return the sign-in URL from a verified registry, or throw. */
++export function signInUrl(registry) {
++  const entry = registry && registry.signin;
++  if (!entry || typeof entry.url !== "string") {
++    throw new SignInError("this build has no sign-in address");
++  }
++  let url;
++  try {
++    url = new URL(entry.url);
++  } catch {
++    throw new SignInError("sign-in address is not a valid URL");
++  }
++  if (url.protocol !== "https:") throw new SignInError("sign-in address must use https");
++  if (url.username || url.password) throw new SignInError("sign-in address must not carry credentials");
++  return url.href;
++}
++
++/** Account state shown on the start page. */
++const state = { signedIn: false, name: "" };
++const listeners = new Set();
++
++export const VeilSignIn = {
++  /**
++   * Sign In: start Cumulus://ID sign-in when it is configured, otherwise
++   * open the Cumulus://ID page in a new foreground tab.
++   */
++  async open({ registry, openTab, cumulusId = null }) {
++    if (cumulusId && cumulusId.enabled) return cumulusId.start();
++    const href = signInUrl(registry);
++    openTab(href, { inBackground: false, relatedToCurrent: true });
++    return href;
++  },
++
++  /** The Cumulus://ID redirect arrived: finish sign-in and update the page. */
++  async finish({ cumulusId, address }) {
++    try {
++      const account = await cumulusId.handleRedirect(address);
++      this.setAccount(account);
++      return account;
++    } catch (err) {
++      this.setAccount({ signedIn: false });
++      throw err;
++    }
++  },
++
++  /** Current account state, as sent to the start page. */
++  account() {
++    return { signedIn: state.signedIn, name: state.signedIn ? state.name : "" };
++  },
++
++  /** Called when Cumulus://ID sign-in finishes or the user signs out. */
++  setAccount({ signedIn, name = "" }) {
++    state.signedIn = signedIn === true;
++    state.name = state.signedIn && typeof name === "string" ? name.slice(0, 64) : "";
++    for (const fn of listeners) fn(this.account());
++  },
++
++  /** New Identity forgets the account along with every other session. */
++  onNewIdentity(cumulusId = null) {
++    if (cumulusId) cumulusId.forget();
++    this.setAccount({ signedIn: false });
++  },
++
++  /** Start pages subscribe to update "Sign In" / "Signed in" live. */
++  subscribe(fn) {
++    listeners.add(fn);
++    return () => listeners.delete(fn);
++  },
++};
+diff --git a/browser/components/veil/content/generated/.gitignore b/browser/components/veil/content/generated/.gitignore
+new file mode 100644
+index 0000000000000000000000000000000000000000..04b2a2519340537aaa35e9248c30ac0a972e11d0
+--- /dev/null
++++ b/browser/components/veil/content/generated/.gitignore
+@@ -0,0 +1,3 @@
++# Written by bootstrap.sh; never committed.
++*
++!.gitignore
+diff --git a/browser/components/veil/content/home/home.html b/browser/components/veil/content/home/home.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d26b4c3c8ee4dd36f569c76966739d4b9e425b0
+--- /dev/null
++++ b/browser/components/veil/content/home/home.html
+@@ -0,0 +1,56 @@
++<!doctype html>
++<html lang="en">
++<head>
++  <meta charset="utf-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  <!-- VEIL has one workspace and it is always anonymous: every connection
++       goes over Tor. Nothing on this page loads from the network; the app
++       list ships inside the browser and changes only through signed updates.
++       The only external action is a search the user submits themselves. -->
++  <meta http-equiv="Content-Security-Policy"
++        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; form-action https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion; base-uri 'none'">
++  <meta name="referrer" content="no-referrer">
++  <title>New tab</title>
++  <link rel="stylesheet" href="../shared/veil.css">
++</head>
++<body>
++  <header class="topbar">
++    <span class="brand">VEIL&lt;/&gt;</span>
++    <span class="spacer"></span>
++    <nav class="top-links" aria-label="Infinitum">
++      <a class="nav-link" id="mail" rel="noreferrer" hidden>Mail</a>
++      <div class="apps-menu">
++        <button type="button" class="nav-link" id="apps-button" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel" hidden>Apps</button>
++        <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden></div>
++      </div>
++      <!-- Opens Cumulus://ID sign-in in a new tab, over Tor. The address comes
++           from the signed app list, never from this page. -->
++      <a class="signin" id="signin" rel="noreferrer" hidden>Sign In</a>
++    </nav>
++  </header>
++
++  <main id="main">
++    <form class="search" role="search" method="get"
++          action="https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion/">
++      <input id="q" name="q" type="search" placeholder="Search privately over Tor"
++             autocomplete="off" spellcheck="false" aria-label="Search">
++    </form>
++
++    <div class="workspace-strip"><span class="workspace" id="workspace" title="Every connection goes over Tor. Your IP address and location stay hidden, signed in or not.">Anonymous</span></div>
++
++    <div class="status" id="tor-status" data-state="unknown" aria-live="polite">
++      <span class="status-line"><span class="dot" aria-hidden="true"></span><span id="tor-status-text">Checking Tor…</span></span>
++      <button type="button" class="text-button" id="new-circuit" title="New route for the current site">New circuit</button>
++      <button type="button" class="text-button" id="new-identity" title="Close all tabs and start fresh">New identity</button>
++    </div>
++
++    <nav class="bookmarks" id="bookmarks" aria-label="Bookmarks"></nav>
++  </main>
++
++  <nav class="apps" id="launcher" aria-label="Infinitum apps"></nav>
++  <footer><span>AI-powered. Blockchain-governed&#8482;.</span><span class="footer-right"><span class="footer-links" id="footer-links"></span><span class="quiet">&#169; 2026 Infinitum Corporation</span></span></footer>
++  <script src="../shared/bridge.js"></script>
++  <script src="../generated/registry.js"></script>
++  <script src="home.js"></script>
++</body>
++</html>
+diff --git a/browser/components/veil/content/home/home.js b/browser/components/veil/content/home/home.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..db2073f46479cad77b2dac20857ce415d9fe0367
+--- /dev/null
++++ b/browser/components/veil/content/home/home.js
+@@ -0,0 +1,178 @@
++"use strict";
++
++(() => {
++  const statusBox = document.getElementById("tor-status");
++  const statusText = document.getElementById("tor-status-text");
++
++  // VEIL never falls back to a direct connection, so "not connected" means
++  // nothing loads until Tor is back.
++  const STATUS_TEXT = {
++    connected: "Connected to Tor",
++    connecting: "Connecting to Tor…",
++    error: "Not connected to Tor; browsing is paused until Tor reconnects",
++    blocked: "Tor settings were changed; VEIL is offline to protect you",
++    preview: "Preview mode",
++  };
++
++  VeilBridge.on("VEIL:TorStatus", ({ state }) => {
++    const known = Object.prototype.hasOwnProperty.call(STATUS_TEXT, state);
++    statusBox.dataset.state = known ? state : "unknown";
++    statusText.textContent = known ? STATUS_TEXT[state] : "Tor status unknown";
++  });
++
++  const registry = (typeof VEIL_REGISTRY === "object" && VEIL_REGISTRY) || {};
++  // Only https:// links. The one exception is the local prototype: when this
++  // page itself is served from localhost (never true inside VEIL, where it is
++  // a built-in page), http://localhost links are allowed too.
++  const devLoopback = location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(location.hostname);
++  const isHttps = url => typeof url === "string" &&
++    (url.startsWith("https://") || (devLoopback && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)));
++
++  // ---- Sign In (top right) ---------------------------------------------
++  // Signing in uses Cumulus://ID. It still goes over Tor, so the user's IP
++  // address and location stay hidden; only the Infinitum service they sign
++  // in to learns who they are. New identity signs them out everywhere.
++  const signin = document.getElementById("signin");
++  const workspace = document.getElementById("workspace");
++  if (registry.signin && isHttps(registry.signin.url)) {
++    signin.href = registry.signin.url;
++    signin.textContent = registry.signin.label || "Sign In";
++    signin.title = "Sign in with Cumulus://ID";
++    signin.hidden = false;
++    signin.addEventListener("click", event => {
++      // Inside VEIL, the browser opens its own copy of the sign-in address
++      // in a new tab. Outside VEIL (preview), the link works as a link.
++      if (VeilBridge.native) {
++        event.preventDefault();
++        VeilBridge.send("VEIL:OpenSignIn");
++      }
++    });
++  }
++
++  VeilBridge.on("VEIL:Account", ({ signedIn, name }) => {
++    if (signedIn) {
++      signin.textContent = "Signed in";
++      signin.title = typeof name === "string" && name ? `${name} · Cumulus://ID` : "Cumulus://ID";
++      workspace.textContent = "Signed in · IP hidden by Tor";
++    } else {
++      signin.textContent = (registry.signin && registry.signin.label) || "Sign In";
++      signin.title = "Sign in with Cumulus://ID";
++      workspace.textContent = "Anonymous";
++    }
++  });
++
++  // ---- Infinitum apps ----------------------------------------------------
++  // From the bundled, signed registry, in alphabetical order: letters and
++  // digits only, so + / ( ) and trademark signs are ignored and Æ sorts as
++  // AE (the registry tool uses the same rule). Plain links: nothing is
++  // fetched until the user clicks one, and then it loads over Tor.
++  const sortKey = name => name.replace(/Æ/g, "AE").replace(/æ/g, "ae")
++    .normalize("NFKD").replace(/[^0-9A-Za-z]/g, "").toLowerCase();
++  const apps = (Array.isArray(registry.apps) ? registry.apps : [])
++    .filter(app => typeof app.name === "string" && isHttps(app.url))
++    .slice()
++    .sort((a, b) => sortKey(a.name).localeCompare(sortKey(b.name)));
++
++  // Apps marked "panel" open in VEIL's side panel, next to the current page,
++  // like ChatGPT's sidebar; clicking again closes it. Only the app id is
++  // sent: the browser takes the address from its own copy of the signed
++  // registry. Other apps, and every app outside VEIL, open as links.
++  function appLink(app, className) {
++    const a = document.createElement("a");
++    a.className = className;
++    a.href = app.url;
++    a.rel = "noreferrer";
++    a.addEventListener("click", event => {
++      if (app.panel === true && VeilBridge.native && typeof app.id === "string") {
++        event.preventDefault();
++        closeApps();
++        VeilBridge.send("VEIL:OpenAppPanel", { id: app.id });
++      }
++    });
++    return a;
++  }
++
++  // Bottom row: the apps that run in the side panel.
++  const launcher = document.getElementById("launcher");
++  for (const app of apps.filter(a => a.panel === true)) {
++    const a = appLink(app, "app-link");
++    a.title = app.summary;
++    a.textContent = app.name;
++    launcher.append(a);
++  }
++
++  // Footer line: apps marked "footer" in the signed list (FABRIC), as links.
++  const footerLinks = document.getElementById("footer-links");
++  for (const app of apps.filter(a => a.footer === true)) {
++    const link = appLink(app, "footer-link");
++    link.title = app.summary;
++    link.textContent = app.name;
++    footerLinks.append(link);
++  }
++
++  // Top right: "Mail", and "Apps" with every consumer app.
++  const mail = document.getElementById("mail");
++  if (registry.mail && isHttps(registry.mail.url)) {
++    mail.href = registry.mail.url;
++    mail.textContent = registry.mail.label || "Mail";
++    mail.title = "Cumulus://Mail";
++    mail.hidden = false;
++  }
++
++  const appsButton = document.getElementById("apps-button");
++  const appsPanel = document.getElementById("apps-panel");
++  for (const app of apps) {
++    const a = appLink(app, "menu-app");
++    a.setAttribute("role", "menuitem");
++    const name = document.createElement("span");
++    name.className = "menu-app-name";
++    name.textContent = app.name;
++    const summary = document.createElement("span");
++    summary.className = "menu-app-summary";
++    summary.textContent = app.panel === true ? `${app.summary} · opens beside the page` : app.summary;
++    a.append(name, summary);
++    appsPanel.append(a);
++  }
++  appsButton.hidden = !apps.length;
++
++  function closeApps() {
++    appsPanel.hidden = true;
++    appsButton.setAttribute("aria-expanded", "false");
++  }
++  appsButton.addEventListener("click", event => {
++    event.stopPropagation();
++    const open = appsPanel.hidden;
++    appsPanel.hidden = !open;
++    appsButton.setAttribute("aria-expanded", String(open));
++    if (open) appsPanel.querySelector("a")?.focus();
++  });
++  document.addEventListener("click", event => {
++    if (!appsPanel.hidden && !appsPanel.contains(event.target)) closeApps();
++  });
++  document.addEventListener("keydown", event => {
++    if (event.key === "Escape" && !appsPanel.hidden) { closeApps(); appsButton.focus(); }
++  });
++
++  VeilBridge.on("VEIL:Bookmarks", ({ items }) => {
++    const box = document.getElementById("bookmarks");
++    box.replaceChildren();
++    if (!Array.isArray(items)) return;
++    for (const item of items.slice(0, 12)) {
++      // Text only: no favicons, which could trigger fetches or reveal
++      // which sites are bookmarked.
++      const a = document.createElement("a");
++      a.className = "bookmark";
++      a.href = item.url;
++      a.rel = "noreferrer";
++      a.textContent = item.title || item.url;
++      box.append(a);
++    }
++  });
++
++  document.getElementById("new-identity").addEventListener("click", () => VeilBridge.send("VEIL:NewIdentity"));
++  document.getElementById("new-circuit").addEventListener("click", () => VeilBridge.send("VEIL:NewCircuit"));
++
++  VeilBridge.send("VEIL:GetTorStatus");
++  VeilBridge.send("VEIL:GetBookmarks");
++  VeilBridge.send("VEIL:GetAccount");
++})();
+diff --git a/browser/components/veil/content/shared/bridge.js b/browser/components/veil/content/shared/bridge.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..3ed7376f6579e751b6d39ef4e2058f5901664b56
+--- /dev/null
++++ b/browser/components/veil/content/shared/bridge.js
+@@ -0,0 +1,65 @@
++/* Bridge between a VEIL dashboard page and the browser.
++ *
++ * In the shipped browser these pages are privileged about: pages, and the
++ * 0002 chrome patch exposes Firefox's RemotePageManager functions
++ * (RPMSendAsyncMessage / RPMAddMessageListener) to them. Outside the browser
++ * (design preview, tests) the bridge falls back to a preview mode that never
++ * touches the network.
++ *
++ * Messages are a fixed allow-list: a dashboard can ask for status and
++ * request user-visible actions, nothing else.
++ */
++"use strict";
++
++const VeilBridge = (() => {
++  const OUTGOING = new Set([
++    "VEIL:GetTorStatus",
++    "VEIL:NewIdentity",
++    "VEIL:NewCircuit",
++    "VEIL:GetBookmarks",
++    "VEIL:OpenSignIn",
++    "VEIL:OpenAppPanel",
++    "VEIL:GetAccount",
++  ]);
++  const INCOMING = new Set(["VEIL:TorStatus", "VEIL:Bookmarks", "VEIL:Account"]);
++
++  const native =
++    typeof RPMSendAsyncMessage === "function" &&
++    typeof RPMAddMessageListener === "function";
++
++  const listeners = new Map();
++
++  function send(name, data = {}) {
++    if (!OUTGOING.has(name)) throw new Error(`VEIL bridge: message not allowed: ${name}`);
++    if (native) {
++      RPMSendAsyncMessage(name, data);
++      return;
++    }
++    preview(name);
++  }
++
++  function on(name, fn) {
++    if (!INCOMING.has(name)) throw new Error(`VEIL bridge: listener not allowed: ${name}`);
++    if (!listeners.has(name)) {
++      listeners.set(name, []);
++      if (native) RPMAddMessageListener(name, msg => emit(name, msg.data));
++    }
++    listeners.get(name).push(fn);
++  }
++
++  function emit(name, data) {
++    for (const fn of listeners.get(name) || []) fn(data);
++  }
++
++  // Preview mode: fixed, local answers so the page can be designed and
++  // tested in any browser without a VEIL build.
++  function preview(name) {
++    queueMicrotask(() => {
++      if (name === "VEIL:GetTorStatus") emit("VEIL:TorStatus", { state: "preview" });
++      if (name === "VEIL:GetBookmarks") emit("VEIL:Bookmarks", { items: [] });
++      if (name === "VEIL:GetAccount") emit("VEIL:Account", { signedIn: false });
++    });
++  }
++
++  return { send, on, native };
++})();
+diff --git a/browser/components/veil/content/shared/veil.css b/browser/components/veil/content/shared/veil.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..1bdad7f7b6f025e927d9113e9f9132c68e44a986
+--- /dev/null
++++ b/browser/components/veil/content/shared/veil.css
+@@ -0,0 +1,165 @@
++/* VEIL start pages: white, quiet, nothing loaded from the network.
++   Typography follows infinitum-corporation.vercel.app: Helvetica Neue at a
++   regular weight with tight tracking on headlines. It is a system font, so
++   nothing is downloaded; app icons are drawn in CSS, never fetched. */
++:root {
++  --bg: #ffffff;
++  --ink: #111820;
++  --ink-quiet: #6b6b74;
++  --rule: #e8e8ec;
++  --hover: #f3f3f5;
++  --focus: #1f5fd6;
++  --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
++}
++/* The one coloured element: the small dot beside "Anonymous". */
++:root { --accent: #5b3fd1; }
++@media (prefers-contrast: more) { :root { --ink-quiet: var(--ink); --rule: #9a9aa3; } }
++
++* { box-sizing: border-box; }
++html, body { margin: 0; background: var(--bg); }
++body {
++  color: var(--ink); font: 15px/1.5 var(--font);
++  min-height: 100vh; display: flex; flex-direction: column;
++}
++:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
++button { font: inherit; color: inherit; cursor: pointer; }
++
++/* ---- top bar -------------------------------------------------------- */
++.topbar {
++  display: flex; align-items: center; flex-wrap: wrap; gap: 0 12px;
++  min-height: 52px; padding: 0 14px; border-bottom: 1px solid var(--rule);
++}
++/* Brand mark, top left, as the Infinitum logo sits on the site. */
++.brand {
++  display: inline-flex; align-items: center; height: 52px; flex: none;
++  font-size: 19px; letter-spacing: -0.04em; color: var(--ink); white-space: nowrap;
++}
++/* Top right: Mail, Apps, Sign In — words in the site's navigation style. */
++.top-links { display: flex; align-items: center; gap: 22px; }
++.nav-link {
++  position: relative; padding: 8px 0; font: inherit; font-size: 13px; color: var(--ink);
++  text-decoration: none; white-space: nowrap; background: none; border: 0; cursor: pointer;
++}
++.nav-link::after {
++  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
++  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
++}
++.nav-link:hover::after, .nav-link:focus-visible::after, .nav-link[aria-expanded="true"]::after { transform: scaleX(1); }
++.nav-link[hidden] { display: none; }
++
++/* The Apps menu, under its word. */
++.apps-menu { position: relative; }
++.apps-panel {
++  position: absolute; top: 40px; right: -12px; z-index: 10; width: 300px;
++  display: flex; flex-direction: column; padding: 8px;
++  background: #fff; border: 1px solid var(--rule); border-radius: 4px;
++  box-shadow: 0 8px 28px rgba(17, 24, 32, .12);
++}
++.apps-panel[hidden] { display: none; }
++.menu-app { display: flex; flex-direction: column; gap: 1px; padding: 9px 12px; border-radius: 3px; color: var(--ink); text-decoration: none; }
++.menu-app:hover, .menu-app:focus-visible { background: var(--hover); }
++.menu-app-name { font-size: 14px; }
++.menu-app-summary { font-size: 12px; color: var(--ink-quiet); }
++
++/* "Sign In", top right: a word in the site's navigation style, darker
++   than the app names so it reads as the page's one action. */
++.signin {
++  position: relative; padding: 8px 0; font-size: 13px; color: var(--ink);
++  text-decoration: none; white-space: nowrap; flex: none; cursor: pointer;
++}
++.signin::after {
++  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
++  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
++}
++.signin:hover::after, .signin:focus-visible::after { transform: scaleX(1); }
++.signin[hidden] { display: none; }
++
++/* Workspace label, centred just under the search box. */
++.workspace-strip { display: flex; justify-content: center; margin-top: 16px; }
++.workspace {
++  display: inline-flex; align-items: center; gap: 8px;
++  font-size: 12px; font-weight: 400; color: var(--ink); white-space: nowrap;
++}
++.workspace::before {
++  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none;
++}
++.spacer { flex: 1; }
++
++/* App names along the bottom, above the footer, styled like the Infinitum
++   site navigation: 13px regular words in muted slate, darkening with a 2px
++   underline on hover. */
++.apps {
++  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
++  gap: 4px 22px; padding: 0 14px 14px;
++}
++.app-link {
++  position: relative; padding: 8px 0; font-size: 13px; color: #49545e;
++  text-decoration: none; white-space: nowrap; flex: none;
++}
++.app-link::after {
++  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
++  background: var(--ink); transform: scaleX(0); transition: transform .15s ease;
++}
++.app-link:hover, .app-link:focus-visible { color: var(--ink); }
++.app-link:hover::after, .app-link:focus-visible::after { transform: scaleX(1); }
++
++.text-button {
++  border: 0; background: none; padding: 6px 10px; border-radius: 2px;
++  font-size: 12px; color: var(--ink-quiet); white-space: nowrap; flex: none;
++}
++.text-button:hover { background: var(--hover); color: var(--ink); }
++/* Outlined button, as in the site's "Let's talk". */
++.outline-button {
++  border: 1px solid var(--ink); background: #fff; padding: 7px 14px; border-radius: 2px;
++  font-size: 12px; color: var(--ink); white-space: nowrap; flex: none;
++}
++.outline-button:hover { background: var(--ink); color: #fff; }
++
++/* ---- centre --------------------------------------------------------- */
++main {
++  flex: 1; width: min(620px, 100% - 32px); margin: 0 auto;
++  display: flex; flex-direction: column; justify-content: center; padding: 48px 0 80px;
++}
++.search input {
++  width: 100%; font: inherit; font-size: 16px; padding: 14px 16px;
++  border: 1px solid var(--rule); border-radius: 2px; background: #fff; color: var(--ink);
++}
++.search input:focus { outline: none; border-color: var(--ink); }
++
++.status {
++  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
++  gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--ink-quiet);
++}
++.status-line { display: inline-flex; align-items: center; gap: 7px; }
++.dot { width: 7px; height: 7px; border-radius: 50%; background: #b5b5bd; }
++.status[data-state="connected"] .dot { background: #1f9d55; }
++.status[data-state="connecting"] .dot { background: #d29a00; }
++.status[data-state="error"] .dot, .status[data-state="blocked"] .dot { background: #d1342f; }
++
++.bookmarks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 32px; }
++.bookmark {
++  font-size: 12px; padding: 6px 12px; border-radius: 2px; border: 1px solid var(--rule);
++  color: var(--ink); text-decoration: none; max-width: 200px;
++  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
++}
++.bookmark:hover { background: var(--hover); }
++
++footer {
++  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px;
++  margin: 0 14px; padding: 14px 0; border-top: 1px solid var(--rule);
++  font-size: 12px; color: var(--ink);
++}
++footer .quiet { color: var(--ink-quiet); }
++.footer-right { display: inline-flex; align-items: center; gap: 18px; }
++.footer-link { color: var(--ink); text-decoration: none; }
++.footer-link:hover, .footer-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
++.footer-links { display: inline-flex; gap: 18px; }
++.footer-links:empty { display: none; }
++
++@media (max-width: 560px) {
++  .topbar { padding: 0 8px; gap: 6px; }
++  .top-links { gap: 16px; }
++  .apps-panel { width: min(300px, 100vw - 16px); }
++  .apps { gap: 2px 18px; }
++  footer { justify-content: flex-start; }
++}
+diff --git a/browser/components/veil/content/veil-browser.css b/browser/components/veil/content/veil-browser.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..7cc74fbb4f7902f7913840f56c3b957d160e7d36
+--- /dev/null
++++ b/browser/components/veil/content/veil-browser.css
+@@ -0,0 +1,28 @@
++/* VEIL's clean toolbar (patch 0001, [branding]): one row of tabs, then back,
++   forward, reload, the address bar, New identity and the menu. Everything
++   else stays reachable from the menu. Browser chrome only: nothing here is
++   visible to web content, so it doesn't affect fingerprinting. */
++
++/* Hide the bookmarks toolbar and the extra buttons Tor Browser shows. */
++#PersonalToolbar { visibility: collapse !important; }
++#home-button, #downloads-button, #fxa-toolbar-menu-button,
++#security-level-button, #new-circuit-button, #library-button,
++#sidebar-button, #unified-extensions-button { display: none !important; }
++
++/* Address bar: a soft rounded field, white with a dark ring when focused. */
++#urlbar-background { border-radius: 18px !important; background-color: #eef0f3 !important; border: 0 !important; }
++#urlbar[focused] > #urlbar-background { background-color: #fff !important; outline: 2px solid #111820 !important; outline-offset: -2px; }
++#urlbar-input { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
++
++/* The "Anonymous" chip at the left of the address bar. */
++#veil-anonymous-chip {
++  display: flex; align-items: center; gap: 7px; height: 26px; margin-inline: 4px 8px; padding-inline: 9px 11px;
++  border-radius: 13px; background: #fff; color: #111820; font: 12.5px "Helvetica Neue", Helvetica, Arial, sans-serif;
++}
++#veil-anonymous-chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #5b3fd1; }
++
++/* Side panel (VeilSidePanel). */
++#veil-panel { width: 420px; min-width: 320px; max-width: 720px; border-inline-start: 1px solid #e3e4e8; background: #fff; }
++#veil-panel-bar { min-height: 34px; padding-inline: 6px; background: #eef0f3; }
++#veil-panel-splitter { width: 5px; margin-inline-start: -2px; border: 0; background: transparent; }
++#veil-panel-splitter:hover { background: #e3e4e8; }
+diff --git a/browser/components/veil/jar.mn b/browser/components/veil/jar.mn
+new file mode 100644
+index 0000000000000000000000000000000000000000..5102260971c8d7d812be91bc8c9e7e240e4fd097
+--- /dev/null
++++ b/browser/components/veil/jar.mn
+@@ -0,0 +1,12 @@
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this
++# file, You can obtain one at http://mozilla.org/MPL/2.0/.
++
++browser.jar:
++  content/browser/veil/generated/registry.js    (content/generated/registry.js)
++  content/browser/veil/generated/registry.json  (content/generated/registry.json)
++  content/browser/veil/home/home.html           (content/home/home.html)
++  content/browser/veil/home/home.js             (content/home/home.js)
++  content/browser/veil/shared/bridge.js         (content/shared/bridge.js)
++  content/browser/veil/shared/veil.css          (content/shared/veil.css)
++  content/browser/veil/veil-browser.css         (content/veil-browser.css)
+diff --git a/browser/components/veil/moz.build b/browser/components/veil/moz.build
+new file mode 100644
+index 0000000000000000000000000000000000000000..f56e2a223c9a387bbc11240c2b43a33fb7b67951
+--- /dev/null
++++ b/browser/components/veil/moz.build
+@@ -0,0 +1,18 @@
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this
++# file, You can obtain one at http://mozilla.org/MPL/2.0/.
++
++with Files("**"):
++    BUG_COMPONENT = ("Firefox", "General")
++
++JAR_MANIFESTS += ["jar.mn"]
++
++MOZ_SRC_FILES += [
++    "AboutVeilHomeChild.sys.mjs",
++    "AboutVeilHomeParent.sys.mjs",
++    "VeilAppPanel.sys.mjs",
++    "VeilBrowser.sys.mjs",
++    "VeilCumulusID.sys.mjs",
++    "VeilSidePanel.sys.mjs",
++    "VeilSignIn.sys.mjs",
++]
+diff --git a/toolkit/modules/RemotePageAccessManager.sys.mjs b/toolkit/modules/RemotePageAccessManager.sys.mjs
+index 25a37c243414e0d8036ee1579b049b1fa5b624ac..505d059d54e933291eafd661b0bc41d51e314082 100644
+--- a/toolkit/modules/RemotePageAccessManager.sys.mjs
++++ b/toolkit/modules/RemotePageAccessManager.sys.mjs
+@@ -318,6 +318,22 @@ export let RemotePageAccessManager = {
+       RPMSendQuery: ["torconnect:get-init-args", "torconnect:get-regions"],
+       RPMGetFormatURLPref: ["app.support.baseURL"],
+     },
++    "about:veil-home": {
++      RPMSendAsyncMessage: [
++        "VEIL:GetTorStatus",
++        "VEIL:NewIdentity",
++        "VEIL:NewCircuit",
++        "VEIL:GetBookmarks",
++        "VEIL:OpenSignIn",
++        "VEIL:OpenAppPanel",
++        "VEIL:GetAccount",
++      ],
++      RPMAddMessageListener: [
++        "VEIL:TorStatus",
++        "VEIL:Bookmarks",
++        "VEIL:Account",
++      ],
++    },
+     "about:welcome": {
+       RPMSendAsyncMessage: ["ActivityStream:ContentToMain"],
+       RPMAddMessageListener: ["ActivityStream:MainToContent"],

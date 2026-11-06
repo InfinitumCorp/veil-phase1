@@ -13,7 +13,7 @@
  * toggles the browser's offline state.
  *
  * Installed by patch 0003 ([network]); loaded from BrowserGlue at startup:
- *   import { VeilAnonymityGuard } from "resource:///modules/VeilAnonymityGuard.sys.mjs";
+ *   import { VeilAnonymityGuard } from "moz-src:///browser/components/veil/VeilAnonymityGuard.sys.mjs";
  *   VeilAnonymityGuard.init();
  */
 

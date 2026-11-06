@@ -1,0 +1,8 @@
+# VEIL patch series awaiting review, cut by veil-browser/tools/cut_patches.py
+# against tor-browser 1f8c6d9758e139aee1da08d170fe59a5b4580e87.
+# Apply in order. 0005 [update] is cut once VEIL's MAR certificates exist.
+0001-VEIL-branding-for-the-release-channel.patch
+0002-VEIL-start-page-sign-in-and-app-side-panel.patch
+0003-Anonymity-guard-go-offline-if-Tor-could-be-bypassed.patch
+0004-Remove-the-way-to-run-with-Tor-turned-off.patch
+0006-Address-bar-commands-for-VEIL-s-apps.patch

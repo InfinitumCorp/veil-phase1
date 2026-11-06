@@ -83,3 +83,18 @@ def test_new_writes_template_with_right_reviewer_slots(tmp_path):
     assert veil_patches.new(d, "fingerprint", "Keep canvas behaviour") == 0
     text = next(d.glob("0001-*.patch")).read_text()
     assert text.count("Reviewed-by:") == 2 and "VEIL-Tag: fingerprint" in text
+
+
+def test_pending_series_passes_lint_except_reviews(root):
+    for d in ("veil-browser/patches/pending", "veil-build/patches/pending"):
+        assert veil_patches.lint(root / d, pending=True) == 0, d
+        # ...and is not accepted as a reviewed series.
+        assert veil_patches.lint(root / d) == 1, d
+
+
+def test_pending_series_is_the_planned_order(root):
+    names = [l for l in (root / "veil-browser/patches/pending/series").read_text().splitlines()
+             if l and not l.startswith("#")]
+    assert [n[:4] for n in names] == ["0001", "0002", "0003", "0004", "0006"]
+    tags = [veil_patches.parse_patch(root / "veil-browser/patches/pending" / n, pending=True).tag for n in names]
+    assert tags == ["branding", "chrome", "network", "network", "chrome"]

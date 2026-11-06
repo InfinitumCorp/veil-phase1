@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Infinitum Corporation <info@theinfinitumcorporation.com>
+Date: Fri, 6 Nov 2026 00:00:00 +0000
+Subject: [PATCH] Build VEIL's tor-browser branch with VEIL update settings
+
+tor-browser-build fetches tor-browser by its own pinned tag, so on its
+own it would build stock Tor Browser. Point the firefox project at the
+VEIL branch that bootstrap.sh checked out, verified and patched (by
+commit, from rbm.local.conf), and give VEIL its own update URL and MAR
+channel ID prefix.
+
+The update URL is a placeholder on .invalid until VEIL's update service
+exists, so a VEIL build can never fetch an update from anywhere else.
+
+VEIL-Tag: update
+VEIL-Reason: Without this, the build would produce Tor Browser instead of VEIL
+---
+ projects/firefox/config | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/projects/firefox/config b/projects/firefox/config
+index b53d523d29fd1ffb57cb9d08e427950fd6d2e7b4..88bbd019bfc03cb22ee978b34669eb691f1d0d2e 100644
+--- a/projects/firefox/config
++++ b/projects/firefox/config
+@@ -1,9 +1,13 @@
+ # vim: filetype=yaml sw=2
+ version: '[% c("abbrev") %]'
+ filename: 'firefox-[% c("var/project-name") %]-[% c("version") %]-[% c("var/osname") %]-[% c("var/build_id") %]'
+-git_hash: '[% c("var/project-name") %]-[% c("var/firefox_version") %]-[% c("var/browser_branch") %]-build[% c("var/browser_build") %]'
+-tag_gpg_id: 1
+-git_url: https://gitlab.torproject.org/tpo/applications/tor-browser.git
++# VEIL: build the VEIL branch that veil-build/bootstrap.sh checked out and
++# patched, by commit. bootstrap.sh verified the upstream tag's signature
++# before applying VEIL's patches, records both commits in pin.lock, and
++# writes these two values into rbm.local.conf.
++git_hash: '[% c("var/veil_browser_commit") %]'
++tag_gpg_id: 0
++git_url: '[% c("var/veil_browser_git_url") %]'
+ gpg_keyring:
+   - boklm.gpg
+   - brizental.gpg
+@@ -37,8 +41,10 @@ var:
+   has_l10n: '[% !c("var/testbuild") && c("var/locales").size %]'
+   # For testing purposes use override_updater_url, as it will also override the
+   # certificate.
+-  updater_url: 'https://aus1.torproject.org/torbrowser/update_3/'
+-  mar_id_prefix: 'torbrowser-torproject'
++  # VEIL: VEIL's own update server and MAR channel IDs, so a VEIL install
++  # never takes a Tor Browser update and vice versa.
++  updater_url: 'https://update.veil.invalid/update_3/'
++  mar_id_prefix: 'veil-infinitum'
+   mar_channel_id: '[% c("var/mar_id_prefix") %]-[% c("var/channel") %]'
+ 
+   # Uncomment this if you want to test the updater. You will need to provide a
+@@ -102,10 +108,10 @@ targets:
+       has_l10n: 0
+ 
+   nightly:
+-    git_hash: '[% c("var/project-name") %]-[% c("var/firefox_version") %]-[% c("var/browser_branch") %]'
++    git_hash: '[% c("var/veil_browser_commit") %]'
+     tag_gpg_id: 0
+     var:
+-      updater_url: 'https://nightlies.tbb.torproject.org/nightly-updates/updates/[% c("var/nightly_updates_publish_dir") %]'
++      updater_url: 'https://update.veil.invalid/nightly/'
+ 
+   mullvadbrowser:
+     git_url: https://gitlab.torproject.org/tpo/applications/mullvad-browser.git

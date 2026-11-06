@@ -8,12 +8,21 @@
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   PlacesUtils: "resource://gre/modules/PlacesUtils.sys.mjs",
-  TorConnect: "resource://gre/modules/TorConnect.sys.mjs",
-  VeilBrowser: "resource:///modules/veil/VeilBrowser.sys.mjs",
-  VeilSignIn: "resource:///modules/veil/VeilSignIn.sys.mjs",
+  TorConnect: "moz-src:///toolkit/modules/TorConnect.sys.mjs",
+  TorDomainIsolator: "moz-src:///toolkit/components/tor-launcher/TorDomainIsolator.sys.mjs",
+  VeilBrowser: "moz-src:///browser/components/veil/VeilBrowser.sys.mjs",
+  VeilSignIn: "moz-src:///browser/components/veil/VeilSignIn.sys.mjs",
 });
 
-const TOR_STATES = { Bootstrapped: "connected", Bootstrapping: "connecting", Error: "error" };
+// TorConnectStage names (toolkit/modules/TorConnect.sys.mjs, ESR 153) -> the
+// three states the start page shows. Anything else is still connecting.
+const TOR_STATES = {
+  Bootstrapped: "connected",
+  Offline: "error",
+  FinalError: "error",
+  ProviderStopped: "error",
+  RegionNotFound: "error",
+};
 
 export class AboutVeilHomeParent extends JSWindowActorParent {
   #unsubscribe = null;
@@ -37,7 +46,7 @@ export class AboutVeilHomeParent extends JSWindowActorParent {
   async receiveMessage({ name, data }) {
     switch (name) {
       case "VEIL:GetTorStatus": {
-        const state = TOR_STATES[lazy.TorConnect.state] || "connecting";
+        const state = TOR_STATES[lazy.TorConnect.stageName] || "connecting";
         this.#send("VEIL:TorStatus", { state });
         break;
       }
@@ -69,7 +78,7 @@ export class AboutVeilHomeParent extends JSWindowActorParent {
         this.#window.NewIdentityButton?.onCommand();      // Tor Browser's own New Identity
         break;
       case "VEIL:NewCircuit":
-        this.#window.TorDomainIsolator?.newCircuitForBrowser(this.#window.gBrowser.selectedBrowser);
+        lazy.TorDomainIsolator.newCircuitForBrowser(this.#window.gBrowser.selectedBrowser);
         break;
     }
   }

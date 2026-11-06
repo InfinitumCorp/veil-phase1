@@ -27,8 +27,10 @@ def test_bridge_allow_list_matches_start_page(root):
     bridge = (root / "veil-chrome" / "src" / "shared" / "bridge.js").read_text()
     out = set(re.findall(r'"(VEIL:\w+)"', re.search(r"OUTGOING = new Set\(\[(.*?)\]\)", bridge, re.S).group(1)))
     inc = set(re.findall(r'"(VEIL:\w+)"', re.search(r"INCOMING = new Set\(\[(.*?)\]\)", bridge, re.S).group(1)))
-    notes = glue(root, "PATCH-NOTES.md")
-    m = re.search(r'RPMSendAsyncMessage: \[(.*?)\], RPMAddMessageListener: \[(.*?)\]', notes)
+    # The allow-list as patch 0002 adds it to RemotePageAccessManager.
+    patch = next((root / "veil-browser" / "patches" / "pending").glob("0002-*.patch")).read_text()
+    block = re.search(r'\+    "about:veil-home": \{(.*?)\+    \},', patch, re.S).group(1)
+    m = re.search(r"RPMSendAsyncMessage: \[(.*?)\].*RPMAddMessageListener: \[(.*?)\]", block, re.S)
     assert set(re.findall(r'"(VEIL:\w+)"', m.group(1))) == out
     assert set(re.findall(r'"(VEIL:\w+)"', m.group(2))) == inc
     parent = glue(root, "AboutVeilHomeParent.sys.mjs")
@@ -44,7 +46,17 @@ def test_app_panel_uses_only_the_id_from_the_page(root):
 def test_address_bar_commands_shut_out_other_providers(root):
     p = glue(root, "VeilUrlbarProvider.sys.mjs")
     assert "PROVIDER_TYPE.HEURISTIC" in p
-    assert re.search(r"getPriority\(queryContext\) \{\s*return this\.isActive\(queryContext\) \? PRIORITY : 0;", p)
+    assert re.search(r"getPriority\(queryContext\) \{\s*return this\.#suggestion\(queryContext\) \? PRIORITY : 0;", p)
+    # ESR 153 provider API: async isActive, object-form UrlbarResult, only the urlbar SAP.
+    assert "async isActive(queryContext)" in p
+    assert "new lazy.UrlbarResult({" in p and "heuristic: true" in p
+    assert 'queryContext.sapName != "urlbar"' in p
+
+
+def test_glue_uses_esr153_module_paths(root):
+    for f in root.joinpath(*GLUE).glob("*.sys.mjs"):
+        text = f.read_text()
+        assert "resource:///modules/" not in text, f.name
 
 
 def test_side_panel_keeps_no_history_and_no_referrer(root):
