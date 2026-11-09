@@ -24,6 +24,10 @@ Tor with no direct fallback, and `veil-browser/src/VeilAnonymityGuard.sys.mjs`
 takes the browser offline if any setting would let traffic bypass Tor.
 Sign In (top right of the start page) signs in with Cumulus://ID. It also
 goes over Tor, so it never reveals the user's IP address or location.
+Geo lists, when a maintainer has fetched them, stay on disk. They can tag
+an address the browser already has, or block ad and tracker domains if the
+user turns that setting on. They do not choose a route and they do not
+resolve a name. The setting is off unless the user enables it.
 
 To websites, VEIL must look identical to stock Tor Browser. VEIL features
 live in browser chrome, never in anything web content can observe.

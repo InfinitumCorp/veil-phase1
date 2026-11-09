@@ -4,6 +4,7 @@ import { AppPanel } from "/modules/VeilAppPanel.sys.mjs";
 import { suggestion, run as runCommand, parse as parseCommand, COMMANDS } from "/modules/VeilAppCommands.sys.mjs";
 import { CumulusID } from "/modules/VeilCumulusID.sys.mjs";
 import { VeilSignIn } from "/modules/VeilSignIn.sys.mjs";
+import { decide, parseGeoSite, readExtraBlocking, SETTING_KEY, EXTRA_BLOCK_CATEGORIES, LOCAL_GEOSITE_PATH } from "/modules/VeilGeoData.sys.mjs";
 
 const registry = await (await fetch("/registry.json")).json();
 const START = "/start/home/home.html";
@@ -228,6 +229,7 @@ const setMenu = open => { menu.hidden = !open; menuButton.setAttribute("aria-exp
 menuButton.addEventListener("click", e => { e.stopPropagation(); setMenu(menu.hidden); });
 document.addEventListener("click", e => { if (!menu.hidden && !menu.contains(e.target)) setMenu(false); });
 menu.addEventListener("click", e => {
+  if (e.target.closest(".menu-setting")) return;
   const cmd = e.target.closest("button")?.dataset.cmd;
   setMenu(false);
   if (cmd === "scalvs" || cmd === "cndctr") appPanel.openWithPrompt(cmd, "");
@@ -314,7 +316,58 @@ function choose(i) {
 }
 function hideRows() { rows = []; list.hidden = true; }
 
+// Extra geosite blocking. Off unless the user turns it on. The list is a
+// local file; a blocked address is never requested.
+let geoLists = null;
+let geoLoad = null;
+
+function loadGeoLists() {
+  if (!readExtraBlocking(localStorage)) return Promise.resolve(null);
+  if (geoLists) return Promise.resolve(geoLists);
+  if (!geoLoad) {
+    geoLoad = (async () => {
+      try {
+        const res = await fetch(LOCAL_GEOSITE_PATH);
+        if (!res.ok) {
+          toast("Extra ad and tracker blocking is on, but the local geosite list is not installed. Nothing was contacted.");
+          geoLoad = null;
+          return null;
+        }
+        geoLists = parseGeoSite(new Uint8Array(await res.arrayBuffer()), { keep: EXTRA_BLOCK_CATEGORIES });
+        return geoLists;
+      } catch {
+        geoLists = null;
+        geoLoad = null;
+        toast("The local geosite list could not be read. Extra blocking is staying inactive.");
+        return null;
+      }
+    })();
+  }
+  return geoLoad;
+}
+
+function navigationBlocked(url) {
+  if (!readExtraBlocking(localStorage)) return false;
+  if (!geoLists) return false;
+  let hostname = "";
+  try { hostname = new URL(url, location.href).hostname; } catch { return false; }
+  const decision = decide({ hostname, geosite: geoLists, extraBlocking: true });
+  if (decision.block !== true) return false;
+  toast(`Blocked ${hostname} (${decision.category}). The local list matched; nothing was looked up or contacted.`);
+  return true;
+}
+
+const geoToggle = $("geosite-extra");
+geoToggle.checked = readExtraBlocking(localStorage);
+geoToggle.addEventListener("change", () => {
+  try { localStorage.setItem(SETTING_KEY, geoToggle.checked ? "1" : "0"); }
+  catch { /* storage unavailable: the switch stays off in readExtraBlocking */ }
+  if (readExtraBlocking(localStorage)) loadGeoLists();
+});
+if (geoToggle.checked) loadGeoLists();
+
 function go(url) {
+  if (navigationBlocked(url)) return;
   if (!active) newTab(url); else navigate(active, url);
 }
 
@@ -350,4 +403,4 @@ document.addEventListener("keydown", e => {
 });
 
 newTab();
-window.veilPrototype = { tabs, appPanel, cumulusId, VeilSignIn };   // for tests and debugging
+window.veilPrototype = { tabs, appPanel, cumulusId, VeilSignIn, geoReady: () => geoLists !== null };
