@@ -109,6 +109,10 @@ HOME_CONTENT = {
     "home/home.js": "content/home/home.js",
     "shared/bridge.js": "content/shared/bridge.js",
     "shared/veil.css": "content/shared/veil.css",
+    "i18n/i18n.js": "content/i18n/i18n.js",
+    "i18n/i18n.css": "content/i18n/i18n.css",
+    "i18n/start.js": "content/i18n/start.js",
+    "i18n/catalogs.js": "content/i18n/catalogs.js",
     "veil-browser.css": "content/veil-browser.css",
     # Written by bootstrap.sh from the signed registry (registry_tool.py build);
     # the build fails without them, so an unsigned registry can't ship.
@@ -126,7 +130,9 @@ APP_ICON = {
 
 
 def copy_home(t: Tree) -> None:
-    for f in ("home/home.html", "home/home.js", "shared/bridge.js", "shared/veil.css"):
+    for f in ("home/home.html", "home/home.js", "shared/bridge.js", "shared/veil.css",
+              # Interface language: runtime and build-time catalogs (infinitum-nexus packages/i18n).
+              "i18n/i18n.js", "i18n/i18n.css", "i18n/start.js", "i18n/catalogs.js"):
         t.write(f"{COMPONENT}/content/{f}", (CHROME / f).read_text())
     t.write(f"{COMPONENT}/content/veil-browser.css", (GLUE / "veil-browser.css").read_text())
     t.write(f"{COMPONENT}/content/generated/.gitignore", "# Written by bootstrap.sh; never committed.\n*\n!.gitignore\n")

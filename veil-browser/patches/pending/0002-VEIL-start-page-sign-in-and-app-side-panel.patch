@@ -26,27 +26,31 @@ VEIL-Reason: VEIL's start page and apps replace about:tor
  browser/base/content/browser.xhtml            |   1 +
  .../base/content/navigator-toolbox.inc.xhtml  |   1 +
  browser/components/BrowserGlue.sys.mjs        |  10 +
- .../components/DesktopActorRegistry.sys.mjs   |  16 ++
+ .../components/DesktopActorRegistry.sys.mjs   |  16 +
  browser/components/about/AboutRedirector.cpp  |   5 +-
  browser/components/about/components.conf      |   1 +
  browser/components/moz.build                  |   1 +
  .../veil/AboutVeilHomeChild.sys.mjs           |   9 +
- .../veil/AboutVeilHomeParent.sys.mjs          |  85 +++++++
- browser/components/veil/VeilAppPanel.sys.mjs  | 120 ++++++++++
- browser/components/veil/VeilBrowser.sys.mjs   | 118 ++++++++++
- browser/components/veil/VeilCumulusID.sys.mjs | 214 ++++++++++++++++++
- browser/components/veil/VeilSidePanel.sys.mjs |  62 +++++
- browser/components/veil/VeilSignIn.sys.mjs    | 101 +++++++++
+ .../veil/AboutVeilHomeParent.sys.mjs          |  85 +++++
+ browser/components/veil/VeilAppPanel.sys.mjs  | 120 +++++++
+ browser/components/veil/VeilBrowser.sys.mjs   | 118 +++++++
+ browser/components/veil/VeilCumulusID.sys.mjs | 214 ++++++++++++
+ browser/components/veil/VeilSidePanel.sys.mjs |  62 ++++
+ browser/components/veil/VeilSignIn.sys.mjs    | 101 ++++++
  .../veil/content/generated/.gitignore         |   3 +
- .../components/veil/content/home/home.html    |  56 +++++
- browser/components/veil/content/home/home.js  | 178 +++++++++++++++
- .../components/veil/content/shared/bridge.js  |  65 ++++++
- .../components/veil/content/shared/veil.css   | 165 ++++++++++++++
- .../components/veil/content/veil-browser.css  |  28 +++
- browser/components/veil/jar.mn                |  12 +
- browser/components/veil/moz.build             |  18 ++
- .../modules/RemotePageAccessManager.sys.mjs   |  16 ++
- 25 files changed, 1290 insertions(+), 2 deletions(-)
+ .../components/veil/content/home/home.html    |  60 ++++
+ browser/components/veil/content/home/home.js  | 178 ++++++++++
+ .../components/veil/content/i18n/catalogs.js  |  35 ++
+ browser/components/veil/content/i18n/i18n.css |  24 ++
+ browser/components/veil/content/i18n/i18n.js  | 311 ++++++++++++++++++
+ browser/components/veil/content/i18n/start.js |  16 +
+ .../components/veil/content/shared/bridge.js  |  65 ++++
+ .../components/veil/content/shared/veil.css   | 165 ++++++++++
+ .../components/veil/content/veil-browser.css  |  28 ++
+ browser/components/veil/jar.mn                |  16 +
+ browser/components/veil/moz.build             |  18 +
+ .../modules/RemotePageAccessManager.sys.mjs   |  16 +
+ 29 files changed, 1684 insertions(+), 2 deletions(-)
  create mode 100644 browser/components/veil/AboutVeilHomeChild.sys.mjs
  create mode 100644 browser/components/veil/AboutVeilHomeParent.sys.mjs
  create mode 100644 browser/components/veil/VeilAppPanel.sys.mjs
@@ -57,6 +61,10 @@ VEIL-Reason: VEIL's start page and apps replace about:tor
  create mode 100644 browser/components/veil/content/generated/.gitignore
  create mode 100644 browser/components/veil/content/home/home.html
  create mode 100644 browser/components/veil/content/home/home.js
+ create mode 100644 browser/components/veil/content/i18n/catalogs.js
+ create mode 100644 browser/components/veil/content/i18n/i18n.css
+ create mode 100644 browser/components/veil/content/i18n/i18n.js
+ create mode 100644 browser/components/veil/content/i18n/start.js
  create mode 100644 browser/components/veil/content/shared/bridge.js
  create mode 100644 browser/components/veil/content/shared/veil.css
  create mode 100644 browser/components/veil/content/veil-browser.css
@@ -973,10 +981,10 @@ index 0000000000000000000000000000000000000000..04b2a2519340537aaa35e9248c30ac0a
 +!.gitignore
 diff --git a/browser/components/veil/content/home/home.html b/browser/components/veil/content/home/home.html
 new file mode 100644
-index 0000000000000000000000000000000000000000..6d26b4c3c8ee4dd36f569c76966739d4b9e425b0
+index 0000000000000000000000000000000000000000..1b8df9147466a6f30984240c567af5a13a541ae3
 --- /dev/null
 +++ b/browser/components/veil/content/home/home.html
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,60 @@
 +<!doctype html>
 +<html lang="en">
 +<head>
@@ -991,16 +999,19 @@ index 0000000000000000000000000000000000000000..6d26b4c3c8ee4dd36f569c76966739d4
 +  <meta name="referrer" content="no-referrer">
 +  <title>New tab</title>
 +  <link rel="stylesheet" href="../shared/veil.css">
++  <link rel="stylesheet" href="../i18n/i18n.css">
 +</head>
 +<body>
 +  <header class="topbar">
-+    <span class="brand">VEIL&lt;/&gt;</span>
++    <span class="brand" translate="no">VEIL&lt;/&gt;</span>
 +    <span class="spacer"></span>
 +    <nav class="top-links" aria-label="Infinitum">
++      <!-- Interface language: catalogs ship inside the browser, nothing is fetched. -->
++      <span id="lang-switch"></span>
 +      <a class="nav-link" id="mail" rel="noreferrer" hidden>Mail</a>
 +      <div class="apps-menu">
 +        <button type="button" class="nav-link" id="apps-button" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel" hidden>Apps</button>
-+        <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden></div>
++        <div class="apps-panel" id="apps-panel" translate="no" role="menu" aria-label="Infinitum apps" hidden></div>
 +      </div>
 +      <!-- Opens Cumulus://ID sign-in in a new tab, over Tor. The address comes
 +           from the signed app list, never from this page. -->
@@ -1023,14 +1034,15 @@ index 0000000000000000000000000000000000000000..6d26b4c3c8ee4dd36f569c76966739d4
 +      <button type="button" class="text-button" id="new-identity" title="Close all tabs and start fresh">New identity</button>
 +    </div>
 +
-+    <nav class="bookmarks" id="bookmarks" aria-label="Bookmarks"></nav>
++    <nav class="bookmarks" id="bookmarks" translate="no" aria-label="Bookmarks"></nav>
 +  </main>
 +
-+  <nav class="apps" id="launcher" aria-label="Infinitum apps"></nav>
++  <nav class="apps" id="launcher" translate="no" aria-label="Infinitum apps"></nav>
 +  <footer><span>AI-powered. Blockchain-governed&#8482;.</span><span class="footer-right"><span class="footer-links" id="footer-links"></span><span class="quiet">&#169; 2026 Infinitum Corporation</span></span></footer>
 +  <script src="../shared/bridge.js"></script>
 +  <script src="../generated/registry.js"></script>
 +  <script src="home.js"></script>
++  <script type="module" src="../i18n/start.js"></script>
 +</body>
 +</html>
 diff --git a/browser/components/veil/content/home/home.js b/browser/components/veil/content/home/home.js
@@ -1217,6 +1229,416 @@ index 0000000000000000000000000000000000000000..db2073f46479cad77b2dac20857ce415
 +  VeilBridge.send("VEIL:GetBookmarks");
 +  VeilBridge.send("VEIL:GetAccount");
 +})();
+diff --git a/browser/components/veil/content/i18n/catalogs.js b/browser/components/veil/content/i18n/catalogs.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..e03fa5dc624b54b373fefcf2c9824ab171f7c22f
+--- /dev/null
++++ b/browser/components/veil/content/i18n/catalogs.js
+@@ -0,0 +1,35 @@
++// Generated by @infinitum/i18n (scripts/translate.ts). Do not edit; edit en.json and re-run.
++export default {
++ "en": {
++  "{0} · Cumulus://ID": "{0} · Cumulus://ID",
++  "{0} · opens beside the page": "{0} · opens beside the page",
++  "© 2026 Infinitum Corporation": "© 2026 Infinitum Corporation",
++  "AI-powered. Blockchain-governed™.": "AI-powered. Blockchain-governed™.",
++  "Anonymous": "Anonymous",
++  "Apps": "Apps",
++  "Bookmarks": "Bookmarks",
++  "Checking Tor…": "Checking Tor…",
++  "Close all tabs and start fresh": "Close all tabs and start fresh",
++  "Connected to Tor": "Connected to Tor",
++  "Connecting to Tor…": "Connecting to Tor…",
++  "Every connection goes over Tor. Your IP address and location stay hidden, signed in or not.": "Every connection goes over Tor. Your IP address and location stay hidden, signed in or not.",
++  "Infinitum": "Infinitum",
++  "Infinitum apps": "Infinitum apps",
++  "Language": "Language",
++  "Mail": "Mail",
++  "New circuit": "New circuit",
++  "New identity": "New identity",
++  "New route for the current site": "New route for the current site",
++  "New tab": "New tab",
++  "Not connected to Tor; browsing is paused until Tor reconnects": "Not connected to Tor; browsing is paused until Tor reconnects",
++  "Preview mode": "Preview mode",
++  "Search": "Search",
++  "Search privately over Tor": "Search privately over Tor",
++  "Sign In": "Sign In",
++  "Sign in with Cumulus://ID": "Sign in with Cumulus://ID",
++  "Signed in": "Signed in",
++  "Signed in · IP hidden by Tor": "Signed in · IP hidden by Tor",
++  "Tor settings were changed; VEIL is offline to protect you": "Tor settings were changed; VEIL is offline to protect you",
++  "Tor status unknown": "Tor status unknown"
++ }
++};
+diff --git a/browser/components/veil/content/i18n/i18n.css b/browser/components/veil/content/i18n/i18n.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..ab92bce5e3ac80a449949ef8205bab82de4d7575
+--- /dev/null
++++ b/browser/components/veil/content/i18n/i18n.css
+@@ -0,0 +1,24 @@
++/* @infinitum/i18n language switcher: white/black, hairline, no shadows or color.
++   No images or data: URIs, so it works under strict CSPs (img-src 'self'). */
++.lang-switch {
++  font: inherit;
++  font-size: 13px;
++  line-height: 1.2;
++  color: #000;
++  background-color: #fff;
++  border: 1px solid #000;
++  border-radius: 0;
++  padding: 4px 6px;
++  cursor: pointer;
++  max-width: 100%;
++}
++.lang-switch:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
++
++/* For apps without a natural header slot: a small fixed menu in the bottom corner. */
++.lang-float {
++  position: fixed;
++  inset-block-end: 12px;
++  inset-inline-start: 12px;
++  z-index: 40;
++}
++@media print { .lang-float { display: none; } }
+diff --git a/browser/components/veil/content/i18n/i18n.js b/browser/components/veil/content/i18n/i18n.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..55265841a58b67244a527172554b8b549dfbc551
+--- /dev/null
++++ b/browser/components/veil/content/i18n/i18n.js
+@@ -0,0 +1,311 @@
++// @infinitum/i18n runtime. One plain ES module, no dependencies, so it runs the
++// same in Vite/React apps, static HTML pages, Workers-served pages and Chrome
++// extensions. Standalone repos vendor this file unchanged (see README).
++//
++// Catalogs are generated at build time and committed with each app, so nothing
++// here fetches from the network: the UI works offline and in Russia without a VPN.
++
++/** Every language an Infinitum app ships. English is the source and the fallback. */
++export const LOCALES = [
++  { code: "en", name: "English", dir: "ltr" },
++  { code: "ru", name: "Русский", dir: "ltr" },
++  { code: "uk", name: "Українська", dir: "ltr" },
++  { code: "es", name: "Español", dir: "ltr" },
++  { code: "fr", name: "Français", dir: "ltr" },
++  { code: "de", name: "Deutsch", dir: "ltr" },
++  { code: "pt", name: "Português", dir: "ltr" },
++  { code: "zh", name: "中文", dir: "ltr" },
++  { code: "ar", name: "العربية", dir: "rtl" },
++];
++
++export const DEFAULT_STORAGE_KEY = "infinitum.lang";
++const RTL = new Set(["ar", "fa", "he", "ur"]);
++
++/** "pt-BR" -> "pt", "zh_Hans_CN" -> "zh". */
++export function baseLanguage(tag) {
++  return String(tag || "").trim().toLowerCase().replace("_", "-").split("-")[0];
++}
++
++export function directionOf(code) {
++  return RTL.has(baseLanguage(code)) ? "rtl" : "ltr";
++}
++
++function readStorage(key) {
++  try { return globalThis.localStorage?.getItem(key) ?? null; } catch { return null; }
++}
++function writeStorage(key, value) {
++  try {
++    if (value == null) globalThis.localStorage?.removeItem(key);
++    else globalThis.localStorage?.setItem(key, value);
++  } catch { /* private mode, blocked storage: the choice just isn't remembered */ }
++}
++
++/**
++ * Pick the UI language: a remembered manual choice, then `?lang=`, then the
++ * browser's preferred languages, then the fallback.
++ */
++export function detectLocale(options = {}) {
++  const supported = options.supported ?? LOCALES.map((l) => l.code);
++  const fallback = options.fallback ?? "en";
++  const key = options.storageKey ?? DEFAULT_STORAGE_KEY;
++  const pick = (tag) => {
++    const base = baseLanguage(tag);
++    return supported.includes(base) ? base : null;
++  };
++  const stored = pick(readStorage(key));
++  if (stored) return stored;
++  try {
++    const q = new URLSearchParams(globalThis.location?.search ?? "").get("lang");
++    if (pick(q)) return pick(q);
++  } catch { /* no location */ }
++  const nav = globalThis.navigator;
++  const prefs = options.languages ?? (nav ? (nav.languages?.length ? nav.languages : [nav.language]) : []);
++  for (const tag of prefs) {
++    const hit = pick(tag);
++    if (hit) return hit;
++  }
++  return fallback;
++}
++
++/** Replace `{name}` placeholders. Unknown placeholders are left as they are. */
++export function format(template, vars) {
++  if (!vars) return template;
++  return template.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
++}
++
++/**
++ * Create a translator.
++ *   const i18n = createI18n({ catalogs });   // catalogs = { en: {...}, ru: {...} }
++ *   i18n.t("nav.inbox"); i18n.setLocale("ar"); i18n.apply(document);
++ */
++export function createI18n(options) {
++  const catalogs = options.catalogs || {};
++  const fallback = options.fallback ?? "en";
++  const storageKey = options.storageKey ?? DEFAULT_STORAGE_KEY;
++  const supported = options.supported ?? LOCALES.map((l) => l.code).filter((c) => c === fallback || catalogs[c]);
++  const listeners = new Set();
++  let locale = options.locale && supported.includes(baseLanguage(options.locale))
++    ? baseLanguage(options.locale)
++    : detectLocale({ supported, fallback, storageKey });
++
++  const t = (key, vars) => {
++    const hit = catalogs[locale]?.[key] ?? catalogs[fallback]?.[key];
++    return format(hit ?? key, vars);
++  };
++
++  // Keys with {0}-style placeholders also match rendered text ("3 / 5 active agents").
++  const patternCache = new Map();
++  const patternsFor = (code) => {
++    if (!patternCache.has(code)) {
++      const list = [];
++      for (const [key, value] of Object.entries(catalogs[code] ?? {})) {
++        if (!/\{\d+\}/.test(key)) continue;
++        const src = key.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\\?\{(\d+)\\?\}/g, "(?<p$1>.+?)").replace(/\{(\d+)\}/g, "(?<p$1>.+?)");
++        try { list.push([new RegExp(`^${src}$`, "s"), value]); } catch { /* skip odd keys */ }
++      }
++      patternCache.set(code, list);
++    }
++    return patternCache.get(code);
++  };
++  /** Translation of an exact English UI string in the current language, or null. */
++  const lookup = (text) => {
++    if (locale === fallback) return null;
++    const exact = catalogs[locale]?.[text];
++    if (exact != null) return exact;
++    for (const [re, value] of patternsFor(locale)) {
++      const m = re.exec(text);
++      if (m) return value.replace(/\{(\d+)\}/g, (s, n) => m.groups?.[`p${n}`] ?? s);
++    }
++    return null;
++  };
++
++  const i18n = {
++    get locale() { return locale; },
++    get dir() { return directionOf(locale); },
++    supported,
++    locales: LOCALES.filter((l) => supported.includes(l.code)),
++    t,
++    lookup,
++    has: (key) => Boolean(catalogs[locale]?.[key] ?? catalogs[fallback]?.[key]),
++    /** Switch language and remember the choice. `null` forgets it and follows the browser again. */
++    setLocale(code) {
++      let next;
++      if (code == null) {
++        writeStorage(storageKey, null);
++        next = detectLocale({ supported, fallback, storageKey });
++      } else {
++        next = baseLanguage(code);
++        if (!supported.includes(next)) return;
++        writeStorage(storageKey, next);
++      }
++      if (next === locale) return;
++      locale = next;
++      if (options.autoApply !== false && globalThis.document) i18n.apply(globalThis.document);
++      for (const fn of listeners) fn(locale);
++    },
++    /** Subscribe to language changes; returns an unsubscribe function. */
++    subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
++    /**
++     * Translate static markup:
++     *   <h1 data-i18n="home.title">Fallback</h1>
++     *   <input data-i18n-attr="placeholder:search.hint,aria-label:search.label">
++     *   <p data-i18n-html="legal.note">  (only for catalog strings you control)
++     * and set <html lang dir>.
++     */
++    apply(root) {
++      const doc = root?.ownerDocument ?? root;
++      const html = doc?.documentElement;
++      if (html) { html.lang = locale; html.dir = directionOf(locale); }
++      if (!root?.querySelectorAll) return;
++      for (const el of root.querySelectorAll("[data-i18n]")) {
++        const key = el.getAttribute("data-i18n");
++        if (i18n.has(key)) el.textContent = t(key);
++      }
++      for (const el of root.querySelectorAll("[data-i18n-html]")) {
++        const key = el.getAttribute("data-i18n-html");
++        if (i18n.has(key)) el.innerHTML = t(key);
++      }
++      for (const el of root.querySelectorAll("[data-i18n-attr]")) {
++        for (const pair of el.getAttribute("data-i18n-attr").split(",")) {
++          const [attr, key] = pair.split(":").map((s) => s.trim());
++          if (attr && key && i18n.has(key)) el.setAttribute(attr, t(key));
++        }
++      }
++    },
++  };
++  if (options.autoApply !== false && globalThis.document?.documentElement) {
++    globalThis.document.documentElement.lang = locale;
++    globalThis.document.documentElement.dir = directionOf(locale);
++  }
++  return i18n;
++}
++
++const UI_ATTRS = ["placeholder", "title", "aria-label", "alt", "label", "aria-description"];
++const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "CODE", "PRE", "TEXTAREA", "NOSCRIPT", "KBD", "SAMP", "svg"]);
++
++/**
++ * Translate rendered markup in place, using catalogs keyed by the English text
++ * (extracted at build time by scripts/extract.ts). Watches the subtree, so text
++ * that views render later is translated too, and re-translates on language change.
++ * Anything inside `translate="no"`, contenteditable, code or form values is left
++ * alone: mark user content (mail bodies, chat, AI output) with translate="no".
++ */
++export function translateDom(i18n, root = globalThis.document?.body) {
++  if (!root) return { stop() {} };
++  const doc = root.ownerDocument ?? root;
++  const sourceText = new WeakMap();   // Text -> English source
++  const shownText = new WeakMap();    // Text -> value we last wrote
++  const sourceAttr = new WeakMap();   // Element -> { attr: English }
++  const skipped = (el) => {
++    for (let e = el; e && e.nodeType === 1; e = e.parentElement) {
++      if (SKIP_TAGS.has(e.tagName) || e.getAttribute("translate") === "no" || e.isContentEditable) return true;
++    }
++    return false;
++  };
++  const split = (s) => /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
++  const doText = (node) => {
++    const cur = node.nodeValue;
++    if (shownText.get(node) !== cur) sourceText.set(node, cur);
++    const src = sourceText.get(node);
++    const [, lead, core, trail] = split(src);
++    if (!core || !/\p{L}/u.test(core) || skipped(node.parentElement)) return;
++    const tr = i18n.lookup(core.replace(/\s+/g, " "));
++    const next = tr == null ? src : lead + tr + trail;
++    shownText.set(node, next);
++    if (next !== cur) node.nodeValue = next;
++  };
++  // A <textarea>'s or <code>'s contents are skipped, but its own placeholder/title
++  // are still UI; only translate="no" and contenteditable opt the element out.
++  const attrsSkipped = (el) => el.getAttribute("translate") === "no" || el.isContentEditable || skipped(el.parentElement);
++  const doAttrs = (el) => {
++    if (attrsSkipped(el)) return;
++    let src = sourceAttr.get(el);
++    for (const a of UI_ATTRS) {
++      if (!el.hasAttribute(a)) continue;
++      const cur = el.getAttribute(a);
++      if (!src) { src = {}; sourceAttr.set(el, src); }
++      const known = src[a];
++      if (known == null || (cur !== known.shown)) src[a] = { en: cur, shown: cur };
++      const tr = i18n.lookup(src[a].en.trim());
++      const next = tr ?? src[a].en;
++      src[a].shown = next;
++      if (next !== cur) el.setAttribute(a, next);
++    }
++  };
++  const walk = (node) => {
++    if (node.nodeType === 3) { doText(node); return; }
++    if (node.nodeType !== 1 && node.nodeType !== 9 && node.nodeType !== 11) return;
++    if (node.nodeType === 1) { doAttrs(node); if (skipped(node)) return; }
++    const tw = doc.createTreeWalker(node, 5 /* ELEMENT | TEXT */, {
++      acceptNode: (n) => {
++        if (n.nodeType !== 1) return 1;
++        if (SKIP_TAGS.has(n.tagName)) { doAttrs(n); return 2; }
++        return n.getAttribute("translate") === "no" || n.isContentEditable ? 2 : 1;
++      },
++    });
++    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
++      if (n.nodeType === 3) doText(n); else doAttrs(n);
++    }
++  };
++  let titleSource = doc.title;
++  let titleShown = doc.title;
++  const doTitle = () => {
++    if (doc.title !== titleShown) titleSource = doc.title;
++    titleShown = i18n.lookup(titleSource) ?? titleSource;
++    if (doc.title !== titleShown) doc.title = titleShown;
++  };
++  const run = () => { doTitle(); walk(root); };
++  run();
++  const Observer = globalThis.MutationObserver;
++  const mo = Observer ? new Observer((records) => {
++    for (const r of records) {
++      if (r.type === "characterData") doText(r.target);
++      else if (r.type === "attributes") doAttrs(r.target);
++      else for (const n of r.addedNodes) walk(n);
++    }
++  }) : null;
++  mo?.observe(root, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: UI_ATTRS });
++  const off = i18n.subscribe(run);
++  return { stop() { mo?.disconnect(); off(); }, refresh: run };
++}
++
++/**
++ * One call for most apps: detect the language, translate the page, and (when
++ * `switcher` is an element or selector) mount the language menu into it.
++ */
++export function startI18n(options) {
++  const i18n = createI18n(options);
++  const doc = globalThis.document;
++  if (doc) {
++    const go = () => {
++      i18n.dom = translateDom(i18n, options.root ?? doc.body);
++      const host = typeof options.switcher === "string" ? doc.querySelector(options.switcher) : options.switcher;
++      // No menu until there is a second language to choose.
++      if (host && i18n.locales.length > 1) host.append(languageSwitcher(i18n, { label: i18n.lookup("Language") ?? "Language" }));
++    };
++    if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", go, { once: true }); else go();
++  }
++  return i18n;
++}
++
++/**
++ * A plain <select> language switcher. It inherits the app's font and colors and
++ * is styled by the `.lang-switch` rules in i18n.css (white/black, hairline border).
++ */
++export function languageSwitcher(i18n, options = {}) {
++  const doc = options.document ?? globalThis.document;
++  const select = doc.createElement("select");
++  select.className = options.className ?? "lang-switch";
++  select.setAttribute("aria-label", options.label ?? "Language");
++  for (const l of i18n.locales) {
++    const opt = doc.createElement("option");
++    opt.value = l.code;
++    opt.textContent = l.name;
++    opt.lang = l.code;
++    if (l.code === i18n.locale) opt.selected = true;
++    select.append(opt);
++  }
++  select.addEventListener("change", () => i18n.setLocale(select.value));
++  i18n.subscribe((code) => { select.value = code; });
++  return select;
++}
+diff --git a/browser/components/veil/content/i18n/start.js b/browser/components/veil/content/i18n/start.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8fa67fcf9f8b0f41a607d9ebd1479d481682042
+--- /dev/null
++++ b/browser/components/veil/content/i18n/start.js
+@@ -0,0 +1,16 @@
++// Interface language: detected from the browser, remembered when chosen from the
++// menu, English fallback. Catalogs are generated at build time with
++// infinitum-nexus packages/i18n (extract.ts + translate.ts) and committed here, so
++// nothing is translated at runtime and the page works offline and in Russia.
++// i18n.js and i18n.css are vendored unchanged from that package.
++import { startI18n } from './i18n.js';
++import catalogs from './catalogs.js';
++
++let slot = document.getElementById('lang-switch');
++if (!slot) {
++  slot = document.createElement('div');
++  slot.className = 'lang-float';
++  document.body.append(slot);
++}
++export const i18n = startI18n({ catalogs, switcher: slot });
++export const t = i18n.t;
 diff --git a/browser/components/veil/content/shared/bridge.js b/browser/components/veil/content/shared/bridge.js
 new file mode 100644
 index 0000000000000000000000000000000000000000..3ed7376f6579e751b6d39ef4e2058f5901664b56
@@ -1495,10 +1917,10 @@ index 0000000000000000000000000000000000000000..7cc74fbb4f7902f7913840f56c3b957d
 +#veil-panel-splitter:hover { background: #e3e4e8; }
 diff --git a/browser/components/veil/jar.mn b/browser/components/veil/jar.mn
 new file mode 100644
-index 0000000000000000000000000000000000000000..5102260971c8d7d812be91bc8c9e7e240e4fd097
+index 0000000000000000000000000000000000000000..202eb1c0944311c983a0d2a3de445ed97dbfbda9
 --- /dev/null
 +++ b/browser/components/veil/jar.mn
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,16 @@
 +# This Source Code Form is subject to the terms of the Mozilla Public
 +# License, v. 2.0. If a copy of the MPL was not distributed with this
 +# file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -1508,6 +1930,10 @@ index 0000000000000000000000000000000000000000..5102260971c8d7d812be91bc8c9e7e24
 +  content/browser/veil/generated/registry.json  (content/generated/registry.json)
 +  content/browser/veil/home/home.html           (content/home/home.html)
 +  content/browser/veil/home/home.js             (content/home/home.js)
++  content/browser/veil/i18n/catalogs.js         (content/i18n/catalogs.js)
++  content/browser/veil/i18n/i18n.css            (content/i18n/i18n.css)
++  content/browser/veil/i18n/i18n.js             (content/i18n/i18n.js)
++  content/browser/veil/i18n/start.js            (content/i18n/start.js)
 +  content/browser/veil/shared/bridge.js         (content/shared/bridge.js)
 +  content/browser/veil/shared/veil.css          (content/shared/veil.css)
 +  content/browser/veil/veil-browser.css         (content/veil-browser.css)

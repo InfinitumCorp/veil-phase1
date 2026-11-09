@@ -12,16 +12,19 @@
   <meta name="referrer" content="no-referrer">
   <title>New tab</title>
   <link rel="stylesheet" href="../shared/veil.css">
+  <link rel="stylesheet" href="../i18n/i18n.css">
 </head>
 <body>
   <header class="topbar">
-    <span class="brand">VEIL&lt;/&gt;</span>
+    <span class="brand" translate="no">VEIL&lt;/&gt;</span>
     <span class="spacer"></span>
     <nav class="top-links" aria-label="Infinitum">
+      <!-- Interface language: catalogs ship inside the browser, nothing is fetched. -->
+      <span id="lang-switch"></span>
       <a class="nav-link" id="mail" rel="noreferrer" hidden>Mail</a>
       <div class="apps-menu">
         <button type="button" class="nav-link" id="apps-button" aria-haspopup="true" aria-expanded="false" aria-controls="apps-panel" hidden>Apps</button>
-        <div class="apps-panel" id="apps-panel" role="menu" aria-label="Infinitum apps" hidden></div>
+        <div class="apps-panel" id="apps-panel" translate="no" role="menu" aria-label="Infinitum apps" hidden></div>
       </div>
       <!-- Opens Cumulus://ID sign-in in a new tab, over Tor. The address comes
            from the signed app list, never from this page. -->
@@ -44,13 +47,14 @@
       <button type="button" class="text-button" id="new-identity" title="Close all tabs and start fresh">New identity</button>
     </div>
 
-    <nav class="bookmarks" id="bookmarks" aria-label="Bookmarks"></nav>
+    <nav class="bookmarks" id="bookmarks" translate="no" aria-label="Bookmarks"></nav>
   </main>
 
-  <nav class="apps" id="launcher" aria-label="Infinitum apps"></nav>
+  <nav class="apps" id="launcher" translate="no" aria-label="Infinitum apps"></nav>
   <footer><span>AI-powered. Blockchain-governed&#8482;.</span><span class="footer-right"><span class="footer-links" id="footer-links"></span><span class="quiet">&#169; 2026 Infinitum Corporation</span></span></footer>
   <script src="../shared/bridge.js"></script>
   <script src="../generated/registry.js"></script>
   <script src="home.js"></script>
+  <script type="module" src="../i18n/start.js"></script>
 </body>
 </html>

@@ -257,13 +257,13 @@ index 0000000000000000000000000000000000000000..d9da0ffab3ff53a6551b8540eea32bba
 @@ -0,0 +1 @@
 +<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 18" width="16" height="16" fill="none" color="context-fill"><circle cx="8" cy="9" r="5.2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="9" r="1.6" fill="currentColor"/></svg>
 diff --git a/browser/components/veil/jar.mn b/browser/components/veil/jar.mn
-index 5102260971c8d7d812be91bc8c9e7e240e4fd097..d64a78340239f02d700b3d5395a4f925cba3a1b8 100644
+index 202eb1c0944311c983a0d2a3de445ed97dbfbda9..9772bb3d5235e2ae889722b928186cee6a953bc0 100644
 --- a/browser/components/veil/jar.mn
 +++ b/browser/components/veil/jar.mn
-@@ -7,6 +7,8 @@ browser.jar:
-   content/browser/veil/generated/registry.json  (content/generated/registry.json)
-   content/browser/veil/home/home.html           (content/home/home.html)
-   content/browser/veil/home/home.js             (content/home/home.js)
+@@ -11,6 +11,8 @@ browser.jar:
+   content/browser/veil/i18n/i18n.css            (content/i18n/i18n.css)
+   content/browser/veil/i18n/i18n.js             (content/i18n/i18n.js)
+   content/browser/veil/i18n/start.js            (content/i18n/start.js)
 +  content/browser/veil/icons/cndctr.svg         (content/icons/cndctr.svg)
 +  content/browser/veil/icons/scalvs.svg         (content/icons/scalvs.svg)
    content/browser/veil/shared/bridge.js         (content/shared/bridge.js)

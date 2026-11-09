@@ -1,0 +1,12 @@
+{
+  "context": "VEIL browser start page (new tab). VEIL routes every connection over Tor. Short UI labels; keep it plain.",
+  "keep": [
+    "VEIL",
+    "Tor",
+    "Cumulus://ID",
+    "Cumulus://Mail",
+    "Infinitum",
+    "Infinitum Corporation",
+    "DuckDuckGo"
+  ]
+}
