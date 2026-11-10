@@ -1,4 +1,5 @@
 import Foundation
+import VeilLogic
 
 /// Fingerprinting reductions WebKit actually allows. VEIL does not pretend
 /// to be desktop Tor Browser: on iOS the engine is WebKit, and a mismatched
@@ -12,15 +13,17 @@ struct WebPrivacyPlan: Equatable {
     var mediaPlaybackRequiresUserAction: Bool
     var customUserAgent: String?
     var referrerScript: String
+    var leakScript: String
 
     static let veil = WebPrivacyPlan(
-        persistentStore: false,
+        persistentStore: WebDataPolicy.persistentByDefault,
         javascriptCanOpenWindowsAutomatically: false,
         fraudulentWebsiteWarning: true,
         siteSpecificQuirks: false,
         elementFullscreen: false,
         mediaPlaybackRequiresUserAction: true,
         customUserAgent: nil,
+        leakScript: LeakBlock.userScript,
         referrerScript: """
         (function () {
           var meta = document.createElement("meta");
@@ -34,7 +37,6 @@ struct WebPrivacyPlan: Equatable {
 
     /// The script must not be able to phone home by itself.
     static func scriptIsLocal(_ source: String) -> Bool {
-        let forbidden = ["fetch(", "XMLHttpRequest", "WebSocket", "sendBeacon", "EventSource", "import("]
-        return forbidden.allSatisfy { !source.contains($0) }
+        LeakBlock.isLocal(source)
     }
 }

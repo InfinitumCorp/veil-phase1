@@ -43,5 +43,10 @@ final class ContentRulesTests: XCTestCase {
         XCTAssertNil(plan.customUserAgent)
         XCTAssertTrue(plan.referrerScript.contains("no-referrer"))
         XCTAssertTrue(WebPrivacyPlan.scriptIsLocal(plan.referrerScript))
+        XCTAssertTrue(WebPrivacyPlan.scriptIsLocal(plan.leakScript))
+        XCTAssertTrue(plan.leakScript.contains("RTCPeerConnection"))
+        XCTAssertTrue(plan.leakScript.contains("webkitRTCPeerConnection"))
+        XCTAssertTrue(plan.leakScript.contains("dns-prefetch"))
+        XCTAssertFalse(plan.persistentStore)
     }
 }

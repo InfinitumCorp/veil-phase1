@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import Network
+import VeilLogic
 import WebKit
 
 enum BrowserSheet: String, Identifiable {
@@ -159,8 +160,11 @@ final class BrowserModel: ObservableObject {
         tor.$state.receive(on: DispatchQueue.main).sink { [weak self] _ in
             Task { @MainActor in self?.refreshStatus() }
         }.store(in: &cancellables)
+        tor.$readiness.receive(on: DispatchQueue.main).sink { [weak self] _ in
+            Task { @MainActor in self?.refreshStatus() }
+        }.store(in: &cancellables)
         tor.$diagnostics.receive(on: DispatchQueue.main).sink { [weak self] _ in
-            Task { @MainActor in self?.objectWillChange.send() }
+            Task { @MainActor in self?.refreshStatus() }
         }.store(in: &cancellables)
     }
 
@@ -196,7 +200,24 @@ final class BrowserModel: ObservableObject {
     }
 
     var gate: TrafficGate {
-        TrafficGate.evaluate(settings: settings, torState: tor.state, endpoint: tor.socksEndpoint)
+        let base = TrafficGate.evaluate(settings: settings, torState: tor.state, endpoint: tor.socksEndpoint)
+        guard case .allowed(let endpoint) = base else { return base }
+        guard proxyRequest(for: endpoint) != nil else { return .paused(VeilCopy.statusError) }
+        return base
+    }
+
+    func proxyRequest(for endpoint: TorEndpoint) -> ProxyRequest? {
+        let excluded = settings.tor.noProxiesOn.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ProxyInstall.request(
+            readiness: tor.readiness,
+            host: endpoint.host,
+            port: endpoint.port,
+            socksVersion: settings.tor.socksVersion,
+            remoteDNS: settings.tor.remoteDNS,
+            allowFailover: settings.tor.failoverDirect,
+            excludedDomains: excluded.isEmpty ? [] : [excluded],
+            persistentStore: WebDataPolicy.persistentByDefault
+        )
     }
 
     var chipText: String { accountName == nil ? VeilCopy.chipAnonymous : VeilCopy.chipSignedIn }
@@ -227,7 +248,7 @@ final class BrowserModel: ObservableObject {
         } else {
             torState = .blocked
         }
-        statusText = TorStatusText.text(torState: tor.state, problems: problems)
+        statusText = TorStatusText.text(torState: tor.state, problems: problems, progress: tor.readiness.progress)
         let allowed = gate.allowsLoads
         if allowed != sawAllowedTraffic {
             sawAllowedTraffic = allowed
@@ -577,11 +598,10 @@ final class BrowserModel: ObservableObject {
 
     private func ensureDataStore() -> WKWebsiteDataStore {
         if let dataStore { return dataStore }
-        let store = WKWebsiteDataStore.nonPersistent()
-        if case .allowed(let endpoint) = gate {
-            WebKitFactory.apply(proxy: WebKitProxyPlan.make(endpoint: endpoint, settings: settings), to: store)
+        let store = WebDataPolicy.persistentByDefault ? WKWebsiteDataStore.default() : WKWebsiteDataStore.nonPersistent()
+        if case .allowed(let endpoint) = gate, WebKitFactory.apply(endpoint: endpoint, readiness: tor.readiness, settings: settings, to: store) {
+            dataStore = store
         }
-        dataStore = store
         return store
     }
 
@@ -622,14 +642,33 @@ private func bundledRegistryJSON() -> Data {
 }
 
 enum WebKitFactory {
-    static func apply(proxy: WebKitProxyPlan, to store: WKWebsiteDataStore) {
-        guard proxy.version == 5, AnonymityGuard.isLoopback(proxy.host), let port = NWEndpoint.Port(rawValue: proxy.port) else {
-            return
+    /// Installs a SOCKS5 proxy with failover off and an empty bypass list.
+    /// Names are not resolved in the app; WebKit sends the hostname to the proxy.
+    /// Returns false when the request would not be fail-closed, and leaves the store without a proxy.
+    @discardableResult
+    static func apply(endpoint: TorEndpoint, readiness: TorReadiness, settings: VeilSettings, to store: WKWebsiteDataStore) -> Bool {
+        let excluded = settings.tor.noProxiesOn.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let request = ProxyInstall.request(
+            readiness: readiness,
+            host: endpoint.host,
+            port: endpoint.port,
+            socksVersion: settings.tor.socksVersion,
+            remoteDNS: settings.tor.remoteDNS,
+            allowFailover: settings.tor.failoverDirect,
+            excludedDomains: excluded.isEmpty ? [] : [excluded],
+            persistentStore: WebDataPolicy.persistentByDefault
+        ) else {
+            return false
         }
-        var configuration = ProxyConfiguration(socksv5Proxy: NWEndpoint.hostPort(host: NWEndpoint.Host(proxy.host), port: port))
+        guard request.remoteDNS, request.allowFailover == false, request.excludedDomains.isEmpty,
+              let port = NWEndpoint.Port(rawValue: request.port) else {
+            return false
+        }
+        var configuration = ProxyConfiguration(socksv5Proxy: NWEndpoint.hostPort(host: NWEndpoint.Host(request.host), port: port))
         configuration.allowFailover = false
         configuration.excludedDomains = []
         store.proxyConfigurations = [configuration]
+        return true
     }
 
     static func configuration(store: WKWebsiteDataStore, rules: WKContentRuleList?, plan: WebPrivacyPlan) -> WKWebViewConfiguration {
@@ -641,10 +680,12 @@ enum WebKitFactory {
         configuration.preferences.isSiteSpecificQuirksModeEnabled = plan.siteSpecificQuirks
         configuration.preferences.isElementFullscreenEnabled = plan.elementFullscreen
         configuration.mediaTypesRequiringUserActionForPlayback = plan.mediaPlaybackRequiresUserAction ? .all : []
-        let script = WKUserScript(source: plan.referrerScript, injectionTime: .atDocumentStart, forMainFrameOnly: false)
-        configuration.userContentController.addUserScript(script)
+        let controller = configuration.userContentController
+        for source in [plan.leakScript, plan.referrerScript] where WebPrivacyPlan.scriptIsLocal(source) {
+            controller.addUserScript(WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false))
+        }
         if let rules {
-            configuration.userContentController.add(rules)
+            controller.add(rules)
         }
         return configuration
     }

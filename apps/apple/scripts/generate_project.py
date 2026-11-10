@@ -55,22 +55,31 @@ def collect(folder: str, suffix: str) -> list[Path]:
 
 
 def main() -> None:
-    swift_app = collect("Veil", ".swift")
+    swift_app = collect("Veil", ".swift") + collect("Veil", ".m")
     swift_tests = collect("VeilTests", ".swift")
     swift_ui = collect("VeilUITests", ".swift")
+    headers = [
+        ROOT / "Veil" / "VeilTorGlue.h",
+        ROOT / "Veil" / "VeilTorDeclarations.h",
+        ROOT / "Veil" / "Veil-Bridging-Header.h",
+    ]
     resources = [
         ROOT / "Veil" / "Assets.xcassets",
         ROOT / "Veil" / "Resources" / "registry.json",
         ROOT / "Veil" / "PrivacyInfo.xcprivacy",
     ]
     info = ROOT / "Veil" / "Info.plist"
-    for path in resources + [info] + swift_app + swift_tests + swift_ui:
+    for path in resources + [info] + swift_app + swift_tests + swift_ui + headers:
         if not path.exists():
             raise SystemExit(f"missing {path}")
 
     def filetype(path: Path) -> str:
         if path.suffix == ".swift":
             return "sourcecode.swift"
+        if path.suffix == ".m":
+            return "sourcecode.c.objc"
+        if path.suffix == ".h":
+            return "sourcecode.c.h"
         if path.suffix == ".json":
             return "text.json"
         if path.suffix == ".plist":
@@ -81,7 +90,7 @@ def main() -> None:
             return "folder.assetcatalog"
         raise SystemExit(path)
 
-    files = swift_app + swift_tests + swift_ui + resources + [info]
+    files = swift_app + swift_tests + swift_ui + resources + [info] + headers
     file_refs = []
     for path in files:
         file_refs.append(
@@ -149,6 +158,12 @@ def main() -> None:
     list_app = hid("list-app")
     list_tests = hid("list-tests")
     list_ui = hid("list-ui")
+    pkg_remote = hid("pkg-tor-remote")
+    pkg_local = hid("pkg-veil-logic")
+    prod_ctor = hid("prod-ctor-app")
+    prod_logic_app = hid("prod-logic-app")
+    build_ctor = hid("build-ctor")
+    build_logic_app = hid("build-logic-app")
 
     shared = {
         "ALWAYS_SEARCH_USER_PATHS": "NO",
@@ -165,6 +180,7 @@ def main() -> None:
         "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator macosx",
         "SUPPORTS_MACCATALYST": "NO",
         "SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD": "NO",
+        "SWIFT_STRICT_CONCURRENCY": "minimal",
         "SWIFT_VERSION": "5.0",
         "ENABLE_TESTABILITY": "YES",
         "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "DEBUG",
@@ -197,6 +213,8 @@ def main() -> None:
         "PRODUCT_MODULE_NAME": "Veil",
         "PRODUCT_NAME": "VEIL",
         "TARGETED_DEVICE_FAMILY": "1,2",
+        "SWIFT_OBJC_BRIDGING_HEADER": "Veil/Veil-Bridging-Header.h",
+        "OTHER_LDFLAGS": ["$(inherited)", "-ObjC"],
     }
     test_common = {
         "CODE_SIGN_IDENTITY": "",
@@ -252,9 +270,11 @@ def main() -> None:
             f"\t\t}};"
         )
 
-    def target(tid: str, name: str, product_name: str, product_ref: str, product_type: str, phases: list[str], deps: list[str], configs: str) -> str:
+    def target(tid: str, name: str, product_name: str, product_ref: str, product_type: str, phases: list[str], deps: list[str], configs: str, package_products: list[tuple[str, str]] | None = None) -> str:
         phase_body = "\n".join(f"\t\t\t\t{phase}," for phase in phases)
         dep_body = "\n".join(f"\t\t\t\t{dep} /* PBXTargetDependency */," for dep in deps)
+        package_products = package_products or []
+        product_body = "\n".join(f"\t\t\t\t{pid} /* {label} */," for pid, label in package_products)
         return f"""\t\t{tid} /* {name} */ = {{
 \t\t\tisa = PBXNativeTarget;
 \t\t\tbuildConfigurationList = {configs} /* Build configuration list */;
@@ -267,6 +287,9 @@ def main() -> None:
 {dep_body}
 \t\t\t);
 \t\t\tname = {name};
+\t\t\tpackageProductDependencies = (
+{product_body}
+\t\t\t);
 \t\t\tproductName = {name};
 \t\t\tproductReference = {product_ref} /* {product_name} */;
 \t\t\tproductType = "{product_type}";
@@ -285,6 +308,8 @@ def main() -> None:
 {build_files(resources, "Resources")}
 {build_files(swift_tests, "Sources")}
 {build_files(swift_ui, "Sources")}
+\t\t{build_logic_app} /* VeilLogic in Frameworks */ = {{isa = PBXBuildFile; productRef = {prod_logic_app} /* VeilLogic */; }};
+\t\t{build_ctor} /* CTor in Frameworks */ = {{isa = PBXBuildFile; productRef = {prod_ctor} /* CTor */; }};
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -309,7 +334,15 @@ def main() -> None:
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-\t\t{app_frameworks} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};
+\t\t{app_frameworks} /* Frameworks */ = {{
+\t\t\tisa = PBXFrameworksBuildPhase;
+\t\t\tbuildActionMask = 2147483647;
+\t\t\tfiles = (
+\t\t\t\t{build_logic_app} /* VeilLogic in Frameworks */,
+\t\t\t\t{build_ctor} /* CTor in Frameworks */,
+\t\t\t);
+\t\t\trunOnlyForDeploymentPostprocessing = 0;
+\t\t}};
 \t\t{test_frameworks} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};
 \t\t{ui_frameworks} /* Frameworks */ = {{isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; }};
 /* End PBXFrameworksBuildPhase section */
@@ -326,7 +359,7 @@ def main() -> None:
 \t\t{group_app} /* Veil */ = {{
 \t\t\tisa = PBXGroup;
 \t\t\tchildren = (
-{children([path for path in swift_app])}
+{children([path for path in swift_app + headers])}
 \t\t\t\t{file_ref(ROOT / "Veil" / "Assets.xcassets")} /* Assets.xcassets */,
 \t\t\t\t{file_ref(info)} /* Info.plist */,
 \t\t\t\t{file_ref(ROOT / "Veil" / "PrivacyInfo.xcprivacy")} /* PrivacyInfo.xcprivacy */,
@@ -374,7 +407,7 @@ def main() -> None:
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-{target(APP, "Veil", "VEIL.app", hid("product-app"), "com.apple.product-type.application", [app_sources, app_frameworks, app_resources], [], list_app)}
+{target(APP, "Veil", "VEIL.app", hid("product-app"), "com.apple.product-type.application", [app_sources, app_frameworks, app_resources], [], list_app, [(prod_logic_app, "VeilLogic"), (prod_ctor, "CTor")])}
 {target(TESTS, "VeilTests", "VeilTests.xctest", hid("product-tests"), "com.apple.product-type.bundle.unit-test", [test_sources, test_frameworks], [dep_tests], list_tests)}
 {target(UITESTS, "VeilUITests", "VeilUITests.xctest", hid("product-ui"), "com.apple.product-type.bundle.ui-testing", [ui_sources, ui_frameworks], [dep_ui], list_ui)}
 /* End PBXNativeTarget section */
@@ -400,6 +433,10 @@ def main() -> None:
 \t\t\tmainGroup = {group_main};
 \t\t\tproductRefGroup = {group_products} /* Products */;
 \t\t\tprojectDirPath = "";
+\t\t\tpackageReferences = (
+\t\t\t\t{pkg_local} /* XCLocalSwiftPackageReference "VeilLogic" */,
+\t\t\t\t{pkg_remote} /* XCRemoteSwiftPackageReference "Tor.framework" */,
+\t\t\t);
 \t\t\tprojectRoot = "";
 \t\t\ttargets = (
 \t\t\t\t{APP} /* Veil */,
@@ -449,6 +486,37 @@ def main() -> None:
 {config_list(list_tests, debug_tests, release_tests)}
 {config_list(list_ui, debug_ui, release_ui)}
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+\t\t{pkg_local} /* XCLocalSwiftPackageReference "VeilLogic" */ = {{
+\t\t\tisa = XCLocalSwiftPackageReference;
+\t\t\trelativePath = VeilLogic;
+\t\t}};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+\t\t{pkg_remote} /* XCRemoteSwiftPackageReference "Tor.framework" */ = {{
+\t\t\tisa = XCRemoteSwiftPackageReference;
+\t\t\trepositoryURL = "https://github.com/iCepa/Tor.framework.git";
+\t\t\trequirement = {{
+\t\t\t\tkind = exactVersion;
+\t\t\t\tversion = "409.16.1";
+\t\t\t}};
+\t\t}};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+\t\t{prod_logic_app} /* VeilLogic */ = {{
+\t\t\tisa = XCSwiftPackageProductDependency;
+\t\t\tpackage = {pkg_local} /* XCLocalSwiftPackageReference "VeilLogic" */;
+\t\t\tproductName = VeilLogic;
+\t\t}};
+\t\t{prod_ctor} /* CTor */ = {{
+\t\t\tisa = XCSwiftPackageProductDependency;
+\t\t\tpackage = {pkg_remote} /* XCRemoteSwiftPackageReference "Tor.framework" */;
+\t\t\tproductName = CTor;
+\t\t}};
+/* End XCSwiftPackageProductDependency section */
 \t}};
 \trootObject = {PROJECT} /* Project object */;
 }}

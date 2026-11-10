@@ -86,12 +86,14 @@ final class WebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKDown
     }
 
     func attach(_ webView: WKWebView, url: URL, generation: Int) {
+        guard model.gate.allowsLoads else { return }
         loadedGeneration = generation
         webView.load(URLRequest(url: url))
     }
 
     func loadIfNeeded(_ webView: WKWebView, url: URL, generation: Int) {
         guard generation != loadedGeneration else { return }
+        guard model.gate.allowsLoads else { return }
         loadedGeneration = generation
         webView.load(URLRequest(url: url))
     }

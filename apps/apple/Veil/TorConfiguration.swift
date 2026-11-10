@@ -1,4 +1,5 @@
 import Foundation
+@_exported import VeilLogic
 
 enum TorConnectionState: String, Codable, Equatable {
     case unknown
@@ -103,9 +104,9 @@ enum TorControlScript {
     static func plan(for command: TorControlCommand) -> TorControlCommandPlan {
         switch command {
         case .newIdentity:
-            return TorControlCommandPlan(lines: ["SIGNAL CLEARDNSCACHE", "SIGNAL NEWNYM"], isolationHost: nil)
+            return TorControlCommandPlan(lines: TorSignals.newIdentity, isolationHost: nil)
         case .newCircuit(let host):
-            return TorControlCommandPlan(lines: ["SIGNAL CLEARDNSCACHE"], isolationHost: host)
+            return TorControlCommandPlan(lines: TorSignals.newCircuit, isolationHost: host)
         }
     }
 }
@@ -225,6 +226,8 @@ struct TorLaunchPlan: Equatable {
             "ControlPort \(configuration.controlHost):\(configuration.controlPort)",
             "CookieAuthentication 1",
             "AvoidDiskWrites 1",
+            "ClientOnly 1",
+            "SafeLogging 1",
             "DataDirectory \(directory.appendingPathComponent(configuration.dataDirectoryName).path)",
             "Log notice stdout",
         ]
@@ -267,22 +270,36 @@ enum TorClientError: Error, Equatable {
     case binaryNotBundled
     case platformCannotSpawnProcess
     case daemonNotLinked
+    case failedToStart
     case networkExtensionNotInstalled
     case controlPortUnavailable
     case trafficPaused
     case refusedCleartext
 }
 
+struct TorDaemonUpdate: Equatable {
+    var progress: Int
+    var summary: String
+    var circuitEstablished: Bool
+    var threadAlive: Bool
+}
+
+struct TorDaemonStarted: Equatable {
+    var endpoint: TorEndpoint
+    var readiness: TorReadiness
+}
+
 protocol InProcessTorDaemon: AnyObject {
-    func start(configuration: TorLaunchConfiguration) async throws -> TorEndpoint
+    /// `onUpdate` is called on the main thread, including after `start` returns.
+    func start(configuration: TorLaunchConfiguration, onUpdate: @escaping (TorDaemonUpdate) -> Void) async throws -> TorDaemonStarted
     func stop() async
     func signal(_ command: TorControlCommand) async throws
 }
 
-/// Stand-in for Tor.framework / a statically linked Arti. Neither library
-/// is linked into this build.
+/// Stand-in used when this process was launched by XCTest, and by tests that
+/// want the fail-closed path without opening a circuit.
 final class NotLinkedTorDaemon: InProcessTorDaemon {
-    func start(configuration: TorLaunchConfiguration) async throws -> TorEndpoint {
+    func start(configuration: TorLaunchConfiguration, onUpdate: @escaping (TorDaemonUpdate) -> Void) async throws -> TorDaemonStarted {
         throw TorClientError.daemonNotLinked
     }
 
