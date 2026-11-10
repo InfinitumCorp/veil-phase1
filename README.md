@@ -13,6 +13,7 @@ never vendored here.
 | `veil-update/` | veil-update | Update channels and signed release manifests |
 | `veil-qa/` | veil-qa | Test suites run in CI and against built browsers |
 | `veil-prototype/` | — | Clickable web version of the browser, for demos and testing |
+| `apps/apple/` | — | Native macOS and iOS VEIL app (SwiftUI and WebKit) |
 | `cumulus-id/` | cumulus-id | Cumulus://ID: sign-in for VEIL and every Infinitum app |
 | `apps/scalvs/`, `apps/cndctr/` | scalvs, cndctr | SCALVS.ai and /CNDCTR/, which run in VEIL's side panel |
 | `infinitum-common/` | infinitum-common | Shared server toolkit and "Sign in with Cumulus://ID" for apps |

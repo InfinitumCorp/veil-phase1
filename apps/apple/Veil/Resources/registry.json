@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "version": 9,
+  "signin": {"label": "Sign In", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#cid", "note": "Cumulus://ID. Opens the CID page until Cumulus://ID publishes its sign-in addresses; then add a cid block (issuer, authorize_url, token_url, client_id, redirect_uri) and Sign In runs the full sign-in."},
+  "mail": {"label": "Mail", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#mail"},
+  "apps": [
+    {"id": "cndctr", "name": "/CNDCTR/™", "summary": "AI coding & execution workspace", "url": "https://infinitum-corporation.vercel.app/products/cndctr", "panel": true},
+    {"id": "cumulus", "name": "Cumulus://Cloud™", "summary": "AI cloud, storage & data exchange", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange"},
+    {"id": "mail", "name": "Cumulus://Mail™", "summary": "Email that comes with your cloud", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#mail"},
+    {"id": "fabric", "name": "FABRIC™", "summary": "Secure communications", "url": "https://infinitum-corporation.vercel.app/products/fabric", "footer": true},
+    {"id": "firm", "name": "FIRM Wallet™", "summary": "Token, wallet & exchange", "url": "https://infinitum-corporation.vercel.app/products/firm#wallet"},
+    {"id": "metatron", "name": "METATRON¹⁰⁰™", "summary": "Consumer command suite", "url": "https://infinitum-corporation.vercel.app/products/metatron"},
+    {"id": "scalvs", "name": "SCALVS.ai™", "summary": "AI workforce platform", "url": "https://infinitum-corporation.vercel.app/products/scalus", "panel": true}
+  ]
+}
