@@ -11,7 +11,7 @@ jobs:
   checks:
     # Checks that need no browser build: patch lint, build-script guards,
     # dashboard network test, registry and update signing tests.
-    runs-on: ubuntu-24.04
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
