@@ -6,3 +6,4 @@
 0003-Anonymity-guard-go-offline-if-Tor-could-be-bypassed.patch
 0004-Remove-the-way-to-run-with-Tor-turned-off.patch
 0006-Address-bar-commands-for-VEIL-s-apps.patch
+0007-Optional-VEIL-VPN-in-front-of-Tor-off-by-default.patch

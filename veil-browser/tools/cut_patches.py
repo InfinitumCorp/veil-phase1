@@ -153,7 +153,10 @@ P0002_MODULES = ["AboutVeilHomeChild.sys.mjs", "AboutVeilHomeParent.sys.mjs", "V
 
 def p0002_chrome(t: Tree) -> None:
     for m in P0002_MODULES:
-        t.write(f"{COMPONENT}/{m}", module_text(m, without=("VeilAnonymityGuard",)))
+        # VeilVpn is wired in patch 0007. Drop those lines here so this patch
+        # does not refer to a module it does not install.
+        drop = ("VeilAnonymityGuard", "VeilVpn") if m == "VeilBrowser.sys.mjs" else ()
+        t.write(f"{COMPONENT}/{m}", module_text(m, without=drop))
     copy_home(t)
     write_component(t, P0002_MODULES, HOME_CONTENT)
 
@@ -245,7 +248,7 @@ Cumulus://ID sign-in flow, and the side panel for VEIL's apps.
 def p0003_guard(t: Tree) -> None:
     modules = P0002_MODULES + ["VeilAnonymityGuard.sys.mjs"]
     t.write(f"{COMPONENT}/VeilAnonymityGuard.sys.mjs", module_text("VeilAnonymityGuard.sys.mjs"))
-    t.write(f"{COMPONENT}/VeilBrowser.sys.mjs", module_text("VeilBrowser.sys.mjs"))
+    t.write(f"{COMPONENT}/VeilBrowser.sys.mjs", module_text("VeilBrowser.sys.mjs", without=("VeilVpn",)))
     write_component(t, modules, HOME_CONTENT)
     t.insert_before("browser/components/BrowserGlue.sys.mjs",
                     "\n    // VEIL: registry, sign-in and side panels, before the first window.\n",
@@ -310,6 +313,32 @@ the proxy settings point at a SOCKS proxy with remote DNS.""",
              "No setting or environment variable may turn Tor off in VEIL")
 
 
+VPN_MODULES = ["VeilVpn.sys.mjs", "VeilVpnBlake3.sys.mjs", "VeilVpnTunnel.sys.mjs"]
+
+
+def p0007_vpn(t: Tree) -> None:
+    modules = (P0002_MODULES + ["VeilAnonymityGuard.sys.mjs", "VeilAppCommands.sys.mjs",
+                                "VeilUrlbarProvider.sys.mjs"] + VPN_MODULES)
+    for name in VPN_MODULES:
+        t.write(f"{COMPONENT}/{name}", module_text(name))
+    t.write(f"{COMPONENT}/VeilBrowser.sys.mjs", module_text("VeilBrowser.sys.mjs"))
+    write_component(t, modules, {**HOME_CONTENT, **ICONS})
+    t.insert_after("browser/app/profile/000-tor-browser.js",
+                   'pref("browser.startup.homepage", "about:veil-home");\n',
+                   "\n// VEIL VPN is optional and off. Set veil.vpn.enabled in about:config.\n"
+                   "// There is no toolbar switch. See veil-browser/README.md.\n"
+                   'pref("veil.vpn.enabled", false);\n')
+    t.commit("network", "Optional VEIL VPN in front of Tor, off by default", """
+Add VeilVpn and keep it idle unless veil.vpn.enabled is exactly true.
+When that preference is on, Tor's upstream proxy becomes a loopback
+tunnel to one VEIL node (HTTP CONNECT on 443, or Shadowsocks 2022 on
+16080). The browser's own proxy stays on Tor, DNS for destinations stays
+inside the tunnel, and a tunnel that is not up sets veil.vpn.blocked so
+the anonymity guard takes the browser offline. Nothing in the browser
+chrome changes.""",
+             "VEIL VPN must be optional, Tor must stay in front of every site, and a down tunnel must not fall back to a direct connection")
+
+
 def p0006_commands(t: Tree) -> None:
     modules = P0002_MODULES + ["VeilAnonymityGuard.sys.mjs", "VeilAppCommands.sys.mjs", "VeilUrlbarProvider.sys.mjs"]
     for m in ("VeilAppCommands.sys.mjs", "VeilUrlbarProvider.sys.mjs"):
@@ -347,6 +376,7 @@ SERIES = [
     # 0005 [update]: VEIL's MAR certificates replace Tor's in
     # toolkit/mozapps/update/updater. Cut once the certificates exist.
     ("0006", p0006_commands),
+    ("0007", p0007_vpn),
 ]
 
 

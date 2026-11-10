@@ -22,6 +22,7 @@ Cut against tor-browser `1f8c6d9758e139aee1da08d170fe59a5b4580e87`
 | 0004 | network | `TOR_PROVIDER=none` no longer turns Tor off; mock provider only under test automation | `tor-launcher/TorProviderBuilder.sys.mjs`, `TorLauncherUtil.sys.mjs` |
 | 0005 | update | VEIL's MAR certificates replace Tor's in `toolkit/mozapps/update/updater` | **not cut yet**: needs the certificates from VEIL's key ceremony |
 | 0006 | chrome | `@scalvs` / `@cndctr` address-bar commands | `urlbar/UrlbarProvidersManager.sys.mjs` (`localProviderModules`) |
+| 0007 | network | Optional VEIL VPN in front of Tor, off unless `veil.vpn.enabled` | `000-tor-browser.js` (one default pref), `browser/components/veil` modules. No chrome |
 
 `veil-build/patches/pending/0001` makes tor-browser-build build the VEIL branch
 (by commit, from `rbm.local.conf` written by bootstrap.sh) with VEIL's update URL
@@ -57,6 +58,12 @@ hash doesn't match. Point `VEIL_UPSTREAM_SUBSET` at the result and
 `VEIL_UPSTREAM_TBB` at a tor-browser-build clone with tag `tbb-16.0-build1`.
 
 ## Still to check on a full build
+
+- Recut `patches/pending` with `cut_patches.py` once the upstream tree is
+  available. 0007 matches that cutter's edit (modules, `veil.vpn.enabled`
+  defaulting to false, no chrome), but its patch bytes were formatted
+  without the upstream checkout, so `test_committed_patches_match_a_fresh_cut`
+  will ask for a recut.
 
 - `browser/components/urlbar/metrics.yaml` lists provider names for telemetry
   (Tor Browser disables telemetry, but a test may compare the lists).

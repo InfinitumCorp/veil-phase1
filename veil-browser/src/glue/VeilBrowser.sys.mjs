@@ -10,6 +10,7 @@
  * Responsibilities:
  *  - load the signed app registry bundled with the browser;
  *  - start the anonymity guard (fail closed if Tor settings are weakened);
+ *  - start VeilVpn, which stays idle unless veil.vpn.enabled is true;
  *  - give each window its side panel and a VeilAppPanel driving it;
  *  - keep the address bar's "Anonymous" chip in step with sign-in;
  *  - run Cumulus://ID sign-in, catching the redirect before it is sent;
@@ -18,6 +19,7 @@
 const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   VeilAnonymityGuard: "moz-src:///browser/components/veil/VeilAnonymityGuard.sys.mjs",
+  VeilVpn: "moz-src:///browser/components/veil/VeilVpn.sys.mjs",
   AppPanel: "moz-src:///browser/components/veil/VeilAppPanel.sys.mjs",
   CumulusID: "moz-src:///browser/components/veil/VeilCumulusID.sys.mjs",
   VeilSignIn: "moz-src:///browser/components/veil/VeilSignIn.sys.mjs",
@@ -67,6 +69,7 @@ export const VeilBrowser = {
   init() {
     registry = loadRegistry();
     lazy.VeilAnonymityGuard.init();
+    lazy.VeilVpn.init();
     cumulusId = new lazy.CumulusID({
       registry,
       openTab: (url, opts) => {
@@ -116,5 +119,6 @@ export const VeilBrowser = {
   onNewIdentity() {
     for (const win of Services.wm.getEnumerator("navigator:browser")) panels.get(win)?.onNewIdentity();
     lazy.VeilSignIn.onNewIdentity(cumulusId);
+    lazy.VeilVpn.onNewIdentity();
   },
 };

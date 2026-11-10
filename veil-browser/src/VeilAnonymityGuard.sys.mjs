@@ -12,6 +12,11 @@
  * It changes nothing a website can observe: it only reads preferences and
  * toggles the browser's offline state.
  *
+ * veil.vpn.blocked is unset unless the optional VEIL VPN tunnel is on and
+ * not actually up. An absent or false value leaves this guard exactly as
+ * strict as Tor-only VEIL: startup with stock Tor Browser proxy settings
+ * stays online.
+ *
  * Installed by patch 0003 ([network]); loaded from BrowserGlue at startup:
  *   import { VeilAnonymityGuard } from "moz-src:///browser/components/veil/VeilAnonymityGuard.sys.mjs";
  *   VeilAnonymityGuard.init();
@@ -68,9 +73,16 @@ export const RULES = Object.freeze([
     ok: v => v === undefined || v === 0 || v === 5,
     why: "DNS over HTTPS must stay off; Tor resolves names",
   },
+  {
+    pref: "veil.vpn.blocked",
+    // Only the VPN controller sets this, and only while the feature is on
+    // but the tunnel is not. Unset is the normal Tor-only browser.
+    ok: v => v !== true,
+    why: "VEIL VPN was requested but its tunnel is not up, so traffic must not leave",
+  },
 ]);
 
-const WATCHED_BRANCHES = ["network.proxy.", "network.trr."];
+const WATCHED_BRANCHES = ["network.proxy.", "network.trr.", "veil.vpn."];
 export const BLOCKED_TOPIC = "veil-anonymity-blocked";
 export const RESTORED_TOPIC = "veil-anonymity-restored";
 
