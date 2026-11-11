@@ -339,6 +339,24 @@ provider API (async isActive, object-form UrlbarResult).""",
              "Run VEIL's apps from the address bar without leaking the request")
 
 
+def p0007_geodata(t: Tree) -> None:
+    t.write(f"{COMPONENT}/VeilGeoData.sys.mjs", module_text("VeilGeoData.sys.mjs"))
+    t.insert_before(f"{COMPONENT}/moz.build",
+                    '    "VeilSidePanel.sys.mjs",\n',
+                    '    "VeilGeoData.sys.mjs",\n')
+    t.commit("chrome", "Local geo lists for optional ad and tracker blocking", """
+Add VeilGeoData. It reads local geo list bytes and can block a hostname
+that is already in the address when the user turns on extra ad and
+tracker categories. The setting defaults off, and while it is off the
+lists are not consulted.
+
+The module does not resolve names and does not change the preferences
+the anonymity guard watches. It cannot add a route that leaves Tor.
+The dat files are not in this patch; fetch_geo.py checks their SHA-256
+and writes a gitignored cache.""",
+             "Optional local ad blocking must not weaken Tor")
+
+
 SERIES = [
     ("0001", p0001_branding),
     ("0002", p0002_chrome),
@@ -347,6 +365,7 @@ SERIES = [
     # 0005 [update]: VEIL's MAR certificates replace Tor's in
     # toolkit/mozapps/update/updater. Cut once the certificates exist.
     ("0006", p0006_commands),
+    ("0007", p0007_geodata),
 ]
 
 

@@ -1,0 +1,67 @@
+Third-party notices
+====================
+
+VEIL uses the two datasets below as local files. A maintainer downloads them
+with veil-browser/tools/fetch_geo.py, which checks the official .sha256sum
+before writing veil-browser/data/geo/cache/. The binaries are gitignored and
+are not part of this source tree.
+
+They are used only for offline annotation, or to block ad and tracker
+domains when the user turns that setting on. The setting is off by default.
+They are not used to choose a route, to open a connection, or to resolve a
+name. Do not substitute Loyalsoldier or sing-box builds. Those are GPL-3 and
+are not approved for this tree.
+
+v2fly geoip (geoip.dat)
+-----------------------
+
+Project: https://github.com/v2fly/geoip
+Release: 202611080027
+Asset: geoip.dat
+SHA-256: eedb24b3b9fcba27e06b92c0428dab90d9496083091ae4cf39e11387fd99d0e2
+Project license: Creative Commons Attribution-ShareAlike 4.0 International
+(CC-BY-SA-4.0)
+https://creativecommons.org/licenses/by-sa/4.0/
+
+The v2fly geoip release is built from DB-IP country data. IP Geolocation by
+DB-IP (https://db-ip.com) is licensed under Creative Commons Attribution 4.0
+International (CC-BY-4.0):
+https://creativecommons.org/licenses/by/4.0/
+
+Copyright: the v2fly geoip contributors. Share-alike applies to the database
+itself. VEIL does not modify it and does not commit it.
+
+v2fly domain-list-community (geosite.dat)
+-----------------------------------------
+
+Project: https://github.com/v2fly/domain-list-community
+Release: 20261108011013
+Asset: dlc.dat, saved locally as geosite.dat
+SHA-256: dc4192dd1b644a38276ed06136d26e729fa674d25785adb38c87e040e92376b2
+License: MIT
+
+The only categories VEIL may block from this file are category-ads,
+category-ads-all, and category-ads-and-telemetry, and only while the extra
+blocking setting is on.
+
+MIT License
+
+Copyright (c) 2018-2019 V2Ray
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

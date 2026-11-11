@@ -14,6 +14,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..");
 const CHROME_SRC = path.join(ROOT, "veil-chrome", "src");
 const MODULES = path.join(ROOT, "veil-browser", "src");
+// Local cache written by veil-browser/tools/fetch_geo.py. Never fetched from here.
+const GEO_CACHE = process.env.VEIL_GEO_DIR
+  ? path.resolve(process.env.VEIL_GEO_DIR)
+  : path.join(ROOT, "veil-browser", "data", "geo", "cache");
+const GEO_FILES = new Set(["geoip.dat", "geosite.dat"]);
 
 /** registry: the dev app list (localhost addresses), same shape as the signed one. */
 export function createPrototype({ registry, frameSources }) {
@@ -21,6 +26,11 @@ export function createPrototype({ registry, frameSources }) {
   const routes = [
     { method: "GET", path: "/", handler: (req, res) => serveStatic(res, path.join(HERE, "static"), "index.html") },
     { method: "GET", path: "/registry.json", handler: (req, res) => send(res, 200, JSON.stringify(registry), { "Content-Type": "application/json" }) },
+    { method: "GET", path: /^\/geo\/(?<file>geoip\.dat|geosite\.dat)$/, handler: (req, res, ctx) => {
+      const file = ctx.params.file;
+      if (!GEO_FILES.has(file)) return send(res, 404, "Not found");
+      serveStatic(res, GEO_CACHE, file);
+    } },
     { method: "GET", path: "/veil/callback", handler: (req, res) => serveStatic(res, path.join(HERE, "static"), "callback.html") },
     // VEIL's real browser modules, as ES modules.
     { method: "GET", path: /^\/modules\/(?<file>Veil\w+\.sys\.mjs)$/, handler: (req, res, ctx) => serveStatic(res, MODULES, ctx.params.file) },

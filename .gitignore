@@ -6,3 +6,5 @@ __pycache__/
 fingerprint-report.json
 veil-chrome/src/generated/
 work/
+# v2fly geoip.dat and geosite.dat, fetched and hash-checked. Never commit the binaries.
+veil-browser/data/geo/cache/

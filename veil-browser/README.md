@@ -41,6 +41,7 @@ change would, it does not ship; raise it with the security engineer instead.
 | Module | Installed by | Does |
 | --- | --- | --- |
 | `VeilAnonymityGuard.sys.mjs` | 0003 | Checks Tor proxy settings at startup and on every change; goes offline if any would let traffic bypass Tor |
+| `VeilGeoData.sys.mjs` | 0007 (next cut) | Local geo lists. Extra ad and tracker blocking stays off until the user turns it on. It does not resolve names or choose a route |
 | `VeilSignIn.sys.mjs` | 0002 | Sign In: runs Cumulus://ID sign-in when configured, otherwise opens the Cumulus://ID page; tracks signed-in state for the start page |
 | `VeilCumulusID.sys.mjs` | 0002 | Sign-in with Cumulus://ID: OpenID Connect code flow with PKCE, over Tor; checks state, nonce, issuer, audience and expiry; tokens kept in memory only |
 | `VeilAppCommands.sys.mjs` | 0006 | Address-bar commands: `@scalvs …` or `@cndctr …` opens the app in the side panel with that request; never sent to the search engine or saved in history |
