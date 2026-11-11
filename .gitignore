@@ -6,3 +6,7 @@ __pycache__/
 fingerprint-report.json
 veil-chrome/src/generated/
 work/
+apps/apple/DerivedData/
+xcuserdata/
+*.xcuserstate
+

@@ -1,0 +1,73 @@
+name: Apple
+
+on:
+  push:
+    paths:
+      - "apps/apple/**"
+      - ".github/workflows/apple.yml"
+  pull_request:
+    paths:
+      - "apps/apple/**"
+      - ".github/workflows/apple.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apple:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: xcodebuild -version
+
+      - name: macOS tests
+        run: |
+          xcodebuild \
+            -project apps/apple/Veil.xcodeproj \
+            -scheme Veil \
+            -destination 'platform=macOS' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            test
+
+      - name: iOS Simulator tests
+        run: |
+          set -euo pipefail
+          DEST_ID="$(python3 - <<'PY'
+          import re, subprocess, sys
+          out = subprocess.check_output(
+              ["xcodebuild", "-project", "apps/apple/Veil.xcodeproj", "-scheme", "Veil", "-showdestinations"],
+              text=True, stderr=subprocess.STDOUT)
+          found = []
+          for line in out.splitlines():
+              if "platform:iOS Simulator" not in line or "name:iPhone" not in line:
+                  continue
+              ident = re.search(r"id:([0-9A-Fa-f-]{36})", line)
+              name = re.search(r"name:([^,}]+)", line)
+              if ident and name:
+                  found.append((name.group(1).strip(), ident.group(1)))
+          if not found:
+              sys.stderr.write(out)
+              raise SystemExit("no iPhone simulator")
+          found.sort(key=lambda item: int(re.search(r"(\d+)", item[0]).group(1)) if re.search(r"(\d+)", item[0]) else 0)
+          print(found[-1][0], file=sys.stderr)
+          print(found[-1][1])
+          PY
+          )"
+          xcodebuild \
+            -project apps/apple/Veil.xcodeproj \
+            -scheme Veil \
+            -destination "platform=iOS Simulator,id=${DEST_ID}" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            test
