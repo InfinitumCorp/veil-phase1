@@ -1,12 +1,15 @@
 import Foundation
 import Network
+import VeilLogic
 
 @MainActor
 final class EmbeddedTorClient: ObservableObject {
     @Published private(set) var state: TorConnectionState = .unknown
     @Published private(set) var diagnostics: String = ""
+    @Published private(set) var readiness: TorReadiness = .booting
     @Published private(set) var lastControlPlan: TorControlCommandPlan?
     private(set) var socksEndpoint: TorEndpoint?
+    private var candidate: TorEndpoint?
     let configuration: TorLaunchConfiguration
     let locator: TorBinaryLocator
     private let daemon: any InProcessTorDaemon
@@ -25,32 +28,47 @@ final class EmbeddedTorClient: ObservableObject {
     }
 
     static func bundled(configuration: TorLaunchConfiguration, bundle: Bundle = .main) -> EmbeddedTorClient {
-        EmbeddedTorClient(configuration: configuration, locator: TorBinaryLocator.current(bundle: bundle))
+        // XCTest hosts this app in-process. Starting Tor there would open a
+        // circuit during unit tests and fight them for the SOCKS port.
+        // UI tests launch a separate process, so they get the real client.
+        let daemon: any InProcessTorDaemon
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            daemon = NotLinkedTorDaemon()
+        } else {
+            daemon = FrameworkTorDaemon()
+        }
+        return EmbeddedTorClient(configuration: configuration, locator: TorBinaryLocator.current(bundle: bundle), daemon: daemon)
     }
 
     var acceptsWebTraffic: Bool {
-        guard state == .connected, let socksEndpoint else { return false }
+        guard state == .connected, let socksEndpoint, readiness.acceptsTraffic else { return false }
         return AnonymityGuard.isLoopback(socksEndpoint.host)
     }
 
     func start() async {
         state = .connecting
         socksEndpoint = nil
+        candidate = nil
+        readiness = .booting
         if configuration.clientKind == .networkExtension {
             state = .error
             diagnostics = PacketTunnelPlan.unavailable(socks: configuration.socksEndpoint).reason
             return
         }
-        if !locator.canSpawnProcess {
-            await startInProcess()
-            return
+        do {
+            try await startInProcess()
+        } catch TorClientError.daemonNotLinked {
+            await startExecutableFallback()
+        } catch {
+            socksEndpoint = nil
+            candidate = nil
+            if state != .error {
+                state = .error
+            }
+            if diagnostics.isEmpty {
+                diagnostics = "Tor did not start. Browsing stays paused."
+            }
         }
-        guard let executable = locator.executable(for: configuration.clientKind) else {
-            state = .error
-            diagnostics = "No Arti or Tor binary is bundled. Browsing stays paused until one is added to the app. VEIL does not fall back to a direct connection."
-            return
-        }
-        await launch(executable)
     }
 
     func stop() async {
@@ -59,11 +77,7 @@ final class EmbeddedTorClient: ObservableObject {
         process = nil
         #endif
         await daemon.stop()
-        socksEndpoint = nil
-        if state == .connected {
-            state = .error
-            diagnostics = VeilCopy.statusError
-        }
+        receive(TorDaemonUpdate(progress: readiness.progress, summary: VeilCopy.statusError, circuitEstablished: false, threadAlive: false))
     }
 
     func newIdentity() async {
@@ -74,21 +88,97 @@ final class EmbeddedTorClient: ObservableObject {
         await signal(.newCircuit(host: host))
     }
 
-    private func startInProcess() async {
-        do {
-            let endpoint = try await daemon.start(configuration: configuration)
-            guard AnonymityGuard.isLoopback(endpoint.host) else {
-                state = .error
-                diagnostics = "The Tor daemon offered a non-loopback proxy. VEIL will not use it."
-                return
+    private func startInProcess() async throws {
+        let started = try await daemon.start(configuration: configuration) { update in
+            let apply = {
+                MainActor.assumeIsolated {
+                    self.receive(update)
+                }
             }
-            socksEndpoint = endpoint
-            state = .connected
-            diagnostics = "In-process Tor daemon is running."
-        } catch {
-            state = .error
-            diagnostics = "This platform cannot spawn a Tor executable, and the in-process Tor.framework / Arti library is not linked. WKWebView will use a SOCKS proxy when a daemon is running. There is no direct connection."
+            if Thread.isMainThread {
+                apply()
+            } else {
+                DispatchQueue.main.async(execute: apply)
+            }
         }
+        adopt(started)
+    }
+
+    /// Applies a daemon update. Call it on the main thread.
+    func receive(_ update: TorDaemonUpdate) {
+        readiness = TorReadiness(
+            progress: update.progress,
+            summary: update.summary,
+            circuitEstablished: update.circuitEstablished,
+            threadAlive: update.threadAlive
+        )
+        publish()
+    }
+
+    private func adopt(_ started: TorDaemonStarted) {
+        candidate = started.endpoint
+        readiness = started.readiness
+        publish()
+    }
+
+    private func publish() {
+        guard let endpoint = candidate else {
+            socksEndpoint = nil
+            if !readiness.threadAlive {
+                state = .error
+                if !readiness.summary.isEmpty { diagnostics = readiness.summary }
+            } else if state != .error {
+                state = .connecting
+                if !readiness.summary.isEmpty { diagnostics = readiness.summary }
+            }
+            return
+        }
+        if !AnonymityGuard.isLoopback(endpoint.host) {
+            socksEndpoint = nil
+            state = .error
+            diagnostics = "The Tor daemon offered a non-loopback proxy. VEIL will not use it."
+            return
+        }
+        let excluded = configuration.noProxiesOn.trimmingCharacters(in: .whitespacesAndNewlines)
+        let request = ProxyInstall.request(
+            readiness: readiness,
+            host: endpoint.host,
+            port: endpoint.port,
+            socksVersion: configuration.socksVersion,
+            remoteDNS: configuration.remoteDNS,
+            allowFailover: configuration.failoverDirect,
+            excludedDomains: excluded.isEmpty ? [] : [excluded],
+            persistentStore: WebDataPolicy.persistentByDefault
+        )
+        if let request {
+            socksEndpoint = TorEndpoint(host: request.host, port: request.port)
+            state = .connected
+            diagnostics = readiness.summary.isEmpty ? "Connected to Tor." : readiness.summary
+        } else if !readiness.threadAlive {
+            socksEndpoint = nil
+            state = .error
+            diagnostics = readiness.summary.isEmpty ? "Tor stopped. Browsing stays paused." : readiness.summary
+        } else {
+            socksEndpoint = nil
+            state = .connecting
+            if !readiness.summary.isEmpty { diagnostics = readiness.summary }
+        }
+    }
+
+    private func startExecutableFallback() async {
+        guard locator.canSpawnProcess else {
+            state = .error
+            socksEndpoint = nil
+            diagnostics = "This platform cannot spawn a Tor executable, and the in-process Tor client is not linked. There is no direct connection."
+            return
+        }
+        guard let executable = locator.executable(for: configuration.clientKind) else {
+            state = .error
+            socksEndpoint = nil
+            diagnostics = "No Arti or Tor binary is bundled. Browsing stays paused until one is added to the app. VEIL does not fall back to a direct connection."
+            return
+        }
+        await launch(executable)
     }
 
     private func signal(_ command: TorControlCommand) async {
@@ -100,8 +190,9 @@ final class EmbeddedTorClient: ObservableObject {
         }
         do {
             try await daemon.signal(command)
+            diagnostics = command == .newIdentity ? "New identity requested from Tor." : diagnostics
         } catch {
-            diagnostics = "Tor control is unavailable in this build."
+            diagnostics = "Tor did not accept the command. Browsing stays on the current circuit."
         }
     }
 
@@ -128,9 +219,10 @@ final class EmbeddedTorClient: ObservableObject {
                 diagnostics = "The bundled Tor client exited before its SOCKS port opened. Browsing stays paused."
                 return
             }
-            socksEndpoint = configuration.socksEndpoint
-            state = .connected
-            diagnostics = "Started \(executable.lastPathComponent) on \(configuration.socksHost):\(configuration.socksPort)."
+            adopt(TorDaemonStarted(
+                endpoint: configuration.socksEndpoint,
+                readiness: TorReadiness(progress: 100, summary: "Started \(executable.lastPathComponent) on \(configuration.socksHost):\(configuration.socksPort).", circuitEstablished: true, threadAlive: true)
+            ))
         } catch {
             state = .error
             socksEndpoint = nil

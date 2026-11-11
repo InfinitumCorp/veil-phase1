@@ -27,7 +27,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Infinitum Corporation</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

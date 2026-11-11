@@ -1,4 +1,5 @@
 import Foundation
+import VeilLogic
 
 /// VEIL's anonymity guard, applied to this app's own proxy settings.
 /// The preference names and the safe values match
@@ -35,10 +36,7 @@ enum AnonymityGuard {
     }
 
     static func isLoopback(_ host: String) -> Bool {
-        let value = host.trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-            .lowercased()
-        return value == "127.0.0.1" || value == "localhost" || value == "::1"
+        LoopbackHost.isLoopback(host)
     }
 }
 
@@ -65,13 +63,13 @@ enum TrafficGate: Equatable {
 }
 
 enum TorStatusText {
-    static func text(torState: TorConnectionState, problems: [AnonymityProblem]) -> String {
+    static func text(torState: TorConnectionState, problems: [AnonymityProblem], progress: Int = 0) -> String {
         if !problems.isEmpty || torState == .blocked {
             return VeilCopy.statusBlocked
         }
         switch torState {
         case .unknown: return VeilCopy.statusChecking
-        case .connecting: return VeilCopy.statusConnecting
+        case .connecting: return TorStatusLine.connecting(VeilCopy.statusConnecting, progress: progress)
         case .connected: return VeilCopy.statusConnected
         case .error: return VeilCopy.statusError
         case .blocked: return VeilCopy.statusBlocked

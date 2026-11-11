@@ -54,6 +54,9 @@ final class TorConfigurationTests: XCTestCase {
         XCTAssertTrue(tor.configText.contains("SocksPort 127.0.0.1:9150 IsolateDestAddr"))
         XCTAssertTrue(tor.configText.contains("SocksPolicy reject *"))
         XCTAssertTrue(tor.configText.contains("CookieAuthentication 1"))
+        XCTAssertTrue(tor.configText.contains("ClientOnly 1"))
+        XCTAssertTrue(tor.configText.contains("SafeLogging 1"))
+        XCTAssertFalse(tor.configText.contains("DNSPort"))
         XCTAssertFalse(tor.configText.contains("HashedControlPassword"))
         XCTAssertTrue(tor.configText.contains("UseBridges 1"))
         XCTAssertTrue(tor.configText.contains("obfs4 192.0.2.10:443 fingerprint"))
@@ -155,6 +158,42 @@ final class TorConfigurationTests: XCTestCase {
         await remote.start()
         XCTAssertEqual(remote.state, .error)
         XCTAssertNil(remote.socksEndpoint)
+        XCTAssertFalse(remote.acceptsWebTraffic)
+    }
+
+    @MainActor
+    func testBootstrapGatesLoadsAndADroppedCircuitClosesThem() async {
+        let locator = TorBinaryLocator(artiExecutable: nil, torExecutable: nil, canSpawnProcess: false)
+        let partial = EmbeddedTorClient(configuration: .veilDefault, locator: locator, daemon: PartialDaemon())
+        await partial.start()
+        XCTAssertEqual(partial.state, .connecting)
+        XCTAssertEqual(partial.readiness.progress, 40)
+        XCTAssertNil(partial.socksEndpoint)
+        XCTAssertFalse(partial.acceptsWebTraffic)
+        XCTAssertEqual(TorStatusText.text(torState: partial.state, problems: [], progress: partial.readiness.progress), "Connecting to Tor… 40%")
+        guard case .paused = TrafficGate.evaluate(settings: .veilDefault, torState: partial.state, endpoint: partial.socksEndpoint) else {
+            return XCTFail("partial bootstrap pauses browsing")
+        }
+
+        let scripted = ScriptedDaemon()
+        let client = EmbeddedTorClient(configuration: .veilDefault, locator: locator, daemon: scripted)
+        await client.start()
+        XCTAssertEqual(client.state, .connected)
+        XCTAssertTrue(client.acceptsWebTraffic)
+        XCTAssertEqual(client.socksEndpoint, TorEndpoint(host: "127.0.0.1", port: 9150))
+        guard case .allowed = TrafficGate.evaluate(settings: .veilDefault, torState: client.state, endpoint: client.socksEndpoint) else {
+            return XCTFail("a bootstrapped loopback proxy is the only open gate")
+        }
+        scripted.push(TorDaemonUpdate(progress: 80, summary: "Circuit died", circuitEstablished: false, threadAlive: true))
+        XCTAssertEqual(client.state, .connecting)
+        XCTAssertNil(client.socksEndpoint)
+        XCTAssertFalse(client.acceptsWebTraffic)
+        guard case .paused = TrafficGate.evaluate(settings: .veilDefault, torState: client.state, endpoint: client.socksEndpoint) else {
+            return XCTFail("a dropped circuit pauses browsing")
+        }
+        scripted.push(TorDaemonUpdate(progress: 80, summary: "Tor stopped.", circuitEstablished: false, threadAlive: false))
+        XCTAssertEqual(client.state, .error)
+        XCTAssertFalse(client.acceptsWebTraffic)
     }
 
     @MainActor
@@ -233,17 +272,47 @@ private final class FakePoster: FormPosting {
 }
 
 private final class LoopbackDaemon: InProcessTorDaemon {
-    func start(configuration: TorLaunchConfiguration) async throws -> TorEndpoint {
-        TorEndpoint(host: "127.0.0.1", port: 9150)
+    func start(configuration: TorLaunchConfiguration, onUpdate: @escaping (TorDaemonUpdate) -> Void) async throws -> TorDaemonStarted {
+        let readiness = TorReadiness(progress: 100, summary: "Done", circuitEstablished: true, threadAlive: true)
+        onUpdate(TorDaemonUpdate(progress: 100, summary: "Done", circuitEstablished: true, threadAlive: true))
+        return TorDaemonStarted(endpoint: TorEndpoint(host: "127.0.0.1", port: configuration.socksPort), readiness: readiness)
     }
     func stop() async {}
     func signal(_ command: TorControlCommand) async throws {}
 }
 
 private final class RemoteDaemon: InProcessTorDaemon {
-    func start(configuration: TorLaunchConfiguration) async throws -> TorEndpoint {
-        TorEndpoint(host: "203.0.113.5", port: 9050)
+    func start(configuration: TorLaunchConfiguration, onUpdate: @escaping (TorDaemonUpdate) -> Void) async throws -> TorDaemonStarted {
+        let readiness = TorReadiness(progress: 100, summary: "Done", circuitEstablished: true, threadAlive: true)
+        onUpdate(TorDaemonUpdate(progress: 100, summary: "Done", circuitEstablished: true, threadAlive: true))
+        return TorDaemonStarted(endpoint: TorEndpoint(host: "203.0.113.5", port: 9050), readiness: readiness)
     }
     func stop() async {}
     func signal(_ command: TorControlCommand) async throws { throw TorClientError.daemonNotLinked }
+}
+
+private final class PartialDaemon: InProcessTorDaemon {
+    func start(configuration: TorLaunchConfiguration, onUpdate: @escaping (TorDaemonUpdate) -> Void) async throws -> TorDaemonStarted {
+        let readiness = TorReadiness(progress: 40, summary: "Loading relay descriptors", circuitEstablished: false, threadAlive: true)
+        onUpdate(TorDaemonUpdate(progress: 40, summary: "Loading relay descriptors", circuitEstablished: false, threadAlive: true))
+        return TorDaemonStarted(endpoint: TorEndpoint(host: "127.0.0.1", port: configuration.socksPort), readiness: readiness)
+    }
+    func stop() async {}
+    func signal(_ command: TorControlCommand) async throws {}
+}
+
+private final class ScriptedDaemon: InProcessTorDaemon {
+    private var onUpdate: ((TorDaemonUpdate) -> Void)?
+    func start(configuration: TorLaunchConfiguration, onUpdate: @escaping (TorDaemonUpdate) -> Void) async throws -> TorDaemonStarted {
+        self.onUpdate = onUpdate
+        let update = TorDaemonUpdate(progress: 100, summary: "Done", circuitEstablished: true, threadAlive: true)
+        onUpdate(update)
+        return TorDaemonStarted(
+            endpoint: TorEndpoint(host: "127.0.0.1", port: configuration.socksPort),
+            readiness: TorReadiness(progress: 100, summary: "Done", circuitEstablished: true, threadAlive: true)
+        )
+    }
+    func push(_ update: TorDaemonUpdate) { onUpdate?(update) }
+    func stop() async {}
+    func signal(_ command: TorControlCommand) async throws {}
 }

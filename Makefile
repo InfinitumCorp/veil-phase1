@@ -1,11 +1,15 @@
 PY ?= python3
 WORK ?= work
 
-.PHONY: patches test lint preview demo clean
+.PHONY: patches test lint apple-logic preview demo clean
 
 ## Run every check that does not need a built browser.
-test: lint
+test: lint apple-logic
 	$(PY) -m pytest -q veil-qa/tests
+
+## Fail-closed Tor gate. Foundation only, so it runs on the Linux CI runner.
+apple-logic:
+	bash apps/apple/scripts/test_logic.sh
 
 lint:
 	$(PY) veil-browser/tools/veil_patches.py lint veil-browser/patches

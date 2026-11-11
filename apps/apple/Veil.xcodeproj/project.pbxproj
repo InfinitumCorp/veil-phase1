@@ -14,6 +14,7 @@
 		37146113E283F6B95ABCA418 /* BrowserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CA186A0A8513F4FE3D7E9A /* BrowserModel.swift */; };
 		4C2BA2844C9772E405EEBB28 /* ContentRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36D033BD3176C83145274F2E /* ContentRules.swift */; };
 		A42EC1C8C2C1D3510F0C55A9 /* CumulusSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11597FD6D77FA631EC2DDC6E /* CumulusSignIn.swift */; };
+		9DD42E56CB5E77ECD823D4B4 /* FrameworkTorDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A0756D19A447383F792EF7F /* FrameworkTorDaemon.swift */; };
 		317F186CE0771890A7CE620F /* LibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EDFEF139239F0506E6D5958 /* LibraryViews.swift */; };
 		4BDDE0B234CAB31EFDAD39F0 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A539915ED1983F5943219A6E /* SessionStore.swift */; };
 		6E979DC07CD6D7D09D880FC8 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EFCEEF5DB50972A4541A785 /* SettingsStore.swift */; };
@@ -26,15 +27,19 @@
 		75D27CCBA89892AD82167B1B /* VeilTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A63D402190107C5BD85F59 /* VeilTheme.swift */; };
 		6680D40063F2AE33F8E64B62 /* WebContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 473842FD12A865E5C20648EB /* WebContent.swift */; };
 		0059AA0C4B7EB433A65232CA /* WebPrivacy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B9D15129EDC93324EB8B109 /* WebPrivacy.swift */; };
+		12269CFA999E7F354E27E5CF /* VeilTorGlue.m in Sources */ = {isa = PBXBuildFile; fileRef = 07DCD425B35D9074A01B21F8 /* VeilTorGlue.m */; };
 		9E2F40202757FE12C8FB7A67 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 67394285CEB190AC1A6F825C /* Assets.xcassets */; };
 		3CF22730B78A2A3D18E9C9C8 /* registry.json in Resources */ = {isa = PBXBuildFile; fileRef = 8A2AD7B5639CCD978D588F9D /* registry.json */; };
 		AB0BC352D7D264F5CF4A2478 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C66C9C589DF11B2694E53DDF /* PrivacyInfo.xcprivacy */; };
 		1A910AD75E609371219CF951 /* AddressInterpreterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0636BB7D50B47DCB2036EE19 /* AddressInterpreterTests.swift */; };
 		2F1E58064459E4B6CC7DDC93 /* ContentRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926E56620BBFB16E3F52AAEC /* ContentRulesTests.swift */; };
+		1DE4DEE468866AE9E71C4A73 /* ProxyGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D06E4ECED033F4C9091854 /* ProxyGateTests.swift */; };
 		31C9FF66A78E8DCDA3E9944E /* SettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 385451C9E458C4A3A6DACCD4 /* SettingsStoreTests.swift */; };
 		8C9FC439CD8D1E7A1E9CF1B8 /* Support.swift in Sources */ = {isa = PBXBuildFile; fileRef = 362B7B9169D3BC375D56EB6C /* Support.swift */; };
 		7D85F11727CF703DB73774BA /* TorConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE52C92194461CC9C03385BA /* TorConfigurationTests.swift */; };
 		91AE72D247714CC7E9B65E9C /* StartPageSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE6CDC15600FF5DC52F6D72D /* StartPageSmokeTests.swift */; };
+		7209FBB15DEA5E3D75DB9767 /* VeilLogic in Frameworks */ = {isa = PBXBuildFile; productRef = 0D49AF8A67D6E5FC97ECEE44 /* VeilLogic */; };
+		7E29495A4D7F63C8037D1484 /* CTor in Frameworks */ = {isa = PBXBuildFile; productRef = 7C4FF247063AFCEFDBA5E6FE /* CTor */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +67,7 @@
 		A4CA186A0A8513F4FE3D7E9A /* BrowserModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserModel.swift; sourceTree = "<group>"; };
 		36D033BD3176C83145274F2E /* ContentRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentRules.swift; sourceTree = "<group>"; };
 		11597FD6D77FA631EC2DDC6E /* CumulusSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CumulusSignIn.swift; sourceTree = "<group>"; };
+		3A0756D19A447383F792EF7F /* FrameworkTorDaemon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameworkTorDaemon.swift; sourceTree = "<group>"; };
 		5EDFEF139239F0506E6D5958 /* LibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryViews.swift; sourceTree = "<group>"; };
 		A539915ED1983F5943219A6E /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		6EFCEEF5DB50972A4541A785 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -74,8 +80,10 @@
 		37A63D402190107C5BD85F59 /* VeilTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VeilTheme.swift; sourceTree = "<group>"; };
 		473842FD12A865E5C20648EB /* WebContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebContent.swift; sourceTree = "<group>"; };
 		2B9D15129EDC93324EB8B109 /* WebPrivacy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebPrivacy.swift; sourceTree = "<group>"; };
+		07DCD425B35D9074A01B21F8 /* VeilTorGlue.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = VeilTorGlue.m; sourceTree = "<group>"; };
 		0636BB7D50B47DCB2036EE19 /* AddressInterpreterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressInterpreterTests.swift; sourceTree = "<group>"; };
 		926E56620BBFB16E3F52AAEC /* ContentRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentRulesTests.swift; sourceTree = "<group>"; };
+		20D06E4ECED033F4C9091854 /* ProxyGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProxyGateTests.swift; sourceTree = "<group>"; };
 		385451C9E458C4A3A6DACCD4 /* SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStoreTests.swift; sourceTree = "<group>"; };
 		362B7B9169D3BC375D56EB6C /* Support.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Support.swift; sourceTree = "<group>"; };
 		EE52C92194461CC9C03385BA /* TorConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TorConfigurationTests.swift; sourceTree = "<group>"; };
@@ -84,13 +92,24 @@
 		8A2AD7B5639CCD978D588F9D /* registry.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = registry.json; sourceTree = "<group>"; };
 		C66C9C589DF11B2694E53DDF /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9BEFC15FF07FE64F34E64DE1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5F8CFD0D009A92B7B48E1A65 /* VeilTorGlue.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VeilTorGlue.h; sourceTree = "<group>"; };
+		3794EF6FBB717DE92D6CE015 /* VeilTorDeclarations.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VeilTorDeclarations.h; sourceTree = "<group>"; };
+		960B2AF7952EBD7BDCC204CD /* Veil-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Veil-Bridging-Header.h; sourceTree = "<group>"; };
 		36992FD9EFCC35941EC8F506 /* VEIL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VEIL.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1BDCCF10062BC847C2914E5C /* VeilTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VeilTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		513DE63E73EB8230187F293F /* VeilUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VeilUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		3ED365C1C448F90EA15A76A7 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		3ED365C1C448F90EA15A76A7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7209FBB15DEA5E3D75DB9767 /* VeilLogic in Frameworks */,
+				7E29495A4D7F63C8037D1484 /* CTor in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		79EEFF1FCC92EA9F41C9AFA0 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		00821C24041EFAC287B62106 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
@@ -114,6 +133,7 @@
 				A4CA186A0A8513F4FE3D7E9A /* BrowserModel.swift */,
 				36D033BD3176C83145274F2E /* ContentRules.swift */,
 				11597FD6D77FA631EC2DDC6E /* CumulusSignIn.swift */,
+				3A0756D19A447383F792EF7F /* FrameworkTorDaemon.swift */,
 				5EDFEF139239F0506E6D5958 /* LibraryViews.swift */,
 				A539915ED1983F5943219A6E /* SessionStore.swift */,
 				6EFCEEF5DB50972A4541A785 /* SettingsStore.swift */,
@@ -126,6 +146,10 @@
 				37A63D402190107C5BD85F59 /* VeilTheme.swift */,
 				473842FD12A865E5C20648EB /* WebContent.swift */,
 				2B9D15129EDC93324EB8B109 /* WebPrivacy.swift */,
+				07DCD425B35D9074A01B21F8 /* VeilTorGlue.m */,
+				5F8CFD0D009A92B7B48E1A65 /* VeilTorGlue.h */,
+				3794EF6FBB717DE92D6CE015 /* VeilTorDeclarations.h */,
+				960B2AF7952EBD7BDCC204CD /* Veil-Bridging-Header.h */,
 				67394285CEB190AC1A6F825C /* Assets.xcassets */,
 				9BEFC15FF07FE64F34E64DE1 /* Info.plist */,
 				C66C9C589DF11B2694E53DDF /* PrivacyInfo.xcprivacy */,
@@ -139,6 +163,7 @@
 			children = (
 				0636BB7D50B47DCB2036EE19 /* AddressInterpreterTests.swift */,
 				926E56620BBFB16E3F52AAEC /* ContentRulesTests.swift */,
+				20D06E4ECED033F4C9091854 /* ProxyGateTests.swift */,
 				385451C9E458C4A3A6DACCD4 /* SettingsStoreTests.swift */,
 				362B7B9169D3BC375D56EB6C /* Support.swift */,
 				EE52C92194461CC9C03385BA /* TorConfigurationTests.swift */,
@@ -191,6 +216,10 @@
 
 			);
 			name = Veil;
+			packageProductDependencies = (
+				0D49AF8A67D6E5FC97ECEE44 /* VeilLogic */,
+				7C4FF247063AFCEFDBA5E6FE /* CTor */,
+			);
 			productName = Veil;
 			productReference = 36992FD9EFCC35941EC8F506 /* VEIL.app */;
 			productType = "com.apple.product-type.application";
@@ -208,6 +237,9 @@
 				90234F21A7D859DCFFBA5D8A /* PBXTargetDependency */,
 			);
 			name = VeilTests;
+			packageProductDependencies = (
+
+			);
 			productName = VeilTests;
 			productReference = 1BDCCF10062BC847C2914E5C /* VeilTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -225,6 +257,9 @@
 				1AE9C0C543920A635AD3ACE8 /* PBXTargetDependency */,
 			);
 			name = VeilUITests;
+			packageProductDependencies = (
+
+			);
 			productName = VeilUITests;
 			productReference = 513DE63E73EB8230187F293F /* VeilUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -252,6 +287,10 @@
 			mainGroup = 22EA56DD29576E62BCCCA1AA;
 			productRefGroup = A511EC6FC8BCAFC6B21CD81D /* Products */;
 			projectDirPath = "";
+			packageReferences = (
+				A7AF58590E9EA820153ACCE9 /* XCLocalSwiftPackageReference "VeilLogic" */,
+				6C294857F1DCC5BB293CE084 /* XCRemoteSwiftPackageReference "Tor.framework" */,
+			);
 			projectRoot = "";
 			targets = (
 				A10000000000000000000002 /* Veil */,
@@ -286,6 +325,7 @@
 				37146113E283F6B95ABCA418 /* BrowserModel.swift in Sources */,
 				4C2BA2844C9772E405EEBB28 /* ContentRules.swift in Sources */,
 				A42EC1C8C2C1D3510F0C55A9 /* CumulusSignIn.swift in Sources */,
+				9DD42E56CB5E77ECD823D4B4 /* FrameworkTorDaemon.swift in Sources */,
 				317F186CE0771890A7CE620F /* LibraryViews.swift in Sources */,
 				4BDDE0B234CAB31EFDAD39F0 /* SessionStore.swift in Sources */,
 				6E979DC07CD6D7D09D880FC8 /* SettingsStore.swift in Sources */,
@@ -298,6 +338,7 @@
 				75D27CCBA89892AD82167B1B /* VeilTheme.swift in Sources */,
 				6680D40063F2AE33F8E64B62 /* WebContent.swift in Sources */,
 				0059AA0C4B7EB433A65232CA /* WebPrivacy.swift in Sources */,
+				12269CFA999E7F354E27E5CF /* VeilTorGlue.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -307,6 +348,7 @@
 			files = (
 				1A910AD75E609371219CF951 /* AddressInterpreterTests.swift in Sources */,
 				2F1E58064459E4B6CC7DDC93 /* ContentRulesTests.swift in Sources */,
+				1DE4DEE468866AE9E71C4A73 /* ProxyGateTests.swift in Sources */,
 				31C9FF66A78E8DCDA3E9944E /* SettingsStoreTests.swift in Sources */,
 				8C9FC439CD8D1E7A1E9CF1B8 /* Support.swift in Sources */,
 				7D85F11727CF703DB73774BA /* TorConfigurationTests.swift in Sources */,
@@ -354,6 +396,7 @@
 			SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 			SUPPORTS_MACCATALYST = "NO";
 			SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = "NO";
+			SWIFT_STRICT_CONCURRENCY = "minimal";
 			SWIFT_VERSION = "5.0";
 			ENABLE_TESTABILITY = "YES";
 			SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG";
@@ -378,6 +421,7 @@
 			SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 			SUPPORTS_MACCATALYST = "NO";
 			SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = "NO";
+			SWIFT_STRICT_CONCURRENCY = "minimal";
 			SWIFT_VERSION = "5.0";
 			ENABLE_TESTABILITY = "YES";
 			SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -412,6 +456,11 @@
 			PRODUCT_MODULE_NAME = "Veil";
 			PRODUCT_NAME = "VEIL";
 			TARGETED_DEVICE_FAMILY = "1,2";
+			SWIFT_OBJC_BRIDGING_HEADER = "Veil/Veil-Bridging-Header.h";
+			OTHER_LDFLAGS = (
+				"$(inherited)",
+				"-ObjC",
+			);
 			};
 			name = Debug;
 		};
@@ -440,6 +489,11 @@
 			PRODUCT_MODULE_NAME = "Veil";
 			PRODUCT_NAME = "VEIL";
 			TARGETED_DEVICE_FAMILY = "1,2";
+			SWIFT_OBJC_BRIDGING_HEADER = "Veil/Veil-Bridging-Header.h";
+			OTHER_LDFLAGS = (
+				"$(inherited)",
+				"-ObjC",
+			);
 			};
 			name = Release;
 		};
@@ -619,6 +673,37 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A7AF58590E9EA820153ACCE9 /* XCLocalSwiftPackageReference "VeilLogic" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = VeilLogic;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		6C294857F1DCC5BB293CE084 /* XCRemoteSwiftPackageReference "Tor.framework" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/iCepa/Tor.framework.git";
+			requirement = {
+				kind = exactVersion;
+				version = "409.16.1";
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0D49AF8A67D6E5FC97ECEE44 /* VeilLogic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A7AF58590E9EA820153ACCE9 /* XCLocalSwiftPackageReference "VeilLogic" */;
+			productName = VeilLogic;
+		};
+		7C4FF247063AFCEFDBA5E6FE /* CTor */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 6C294857F1DCC5BB293CE084 /* XCRemoteSwiftPackageReference "Tor.framework" */;
+			productName = CTor;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A10000000000000000000001 /* Project object */;
 }

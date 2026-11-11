@@ -74,7 +74,7 @@ struct SettingsView: View {
                 .padding(.vertical, 7)
                 .overlay(RoundedRectangle(cornerRadius: 2).stroke(VeilColor.ink, lineWidth: 1))
                 .padding(14)
-                Text("A bridge line that tries to set a proxy is refused, and VEIL goes offline. Bridges are written into the Tor configuration when a client is bundled. Arti's bridge table is version-specific, so it is left disabled until that binary is pinned.")
+                Text("A bridge line that tries to set a proxy is refused, and VEIL goes offline. Lines are passed to the built-in Tor client. obfs4, snowflake, and webtunnel need a transport program this app does not include, so those bridges will not connect.")
                     .font(VeilFont.text(12))
                     .foregroundStyle(VeilColor.inkQuiet)
                     .padding(.horizontal, 14)

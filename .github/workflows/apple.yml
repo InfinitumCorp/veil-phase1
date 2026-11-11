@@ -19,12 +19,20 @@ concurrency:
 
 jobs:
   apple:
+    # Linux checks, including the VeilLogic gate tests, use vars.CI_RUNNER
+    # from ci.yml. This job compiles and runs the app. It needs a Mac with
+    # an Xcode that can resolve Tor.framework (Swift tools version 6.3).
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Xcode
-        run: xcodebuild -version
+        run: |
+          xcodebuild -version
+          xcrun swift --version
+
+      - name: Logic tests
+        run: bash apps/apple/scripts/test_logic.sh
 
       - name: macOS tests
         run: |

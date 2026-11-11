@@ -1,0 +1,14 @@
+{
+  "pins" : [
+    {
+      "identity" : "tor.framework",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/iCepa/Tor.framework.git",
+      "state" : {
+        "revision" : "db4d31c2f9fe0773a175a23f1605cab7ab4d40a0",
+        "version" : "409.16.1"
+      }
+    }
+  ],
+  "version" : 2
+}
