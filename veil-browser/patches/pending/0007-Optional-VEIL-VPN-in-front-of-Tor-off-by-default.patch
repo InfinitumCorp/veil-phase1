@@ -1,0 +1,1372 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Infinitum Corporation <info@theinfinitumcorporation.com>
+Date: Tue, 10 Nov 2026 00:00:00 +0000
+Subject: [PATCH] Optional VEIL VPN in front of Tor, off by default
+
+Add VeilVpn and keep it idle unless veil.vpn.enabled is exactly true.
+When that preference is on, Tor's upstream proxy becomes a loopback
+tunnel to one VEIL node (HTTP CONNECT on 443, or Shadowsocks 2022 on
+16080). The browser's own proxy stays on Tor, DNS for destinations stays
+inside the tunnel, and a tunnel that is not up sets veil.vpn.blocked so
+the anonymity guard takes the browser offline. Nothing in the browser
+chrome changes.
+
+VEIL-Tag: network
+VEIL-Reason: VEIL VPN must be optional, Tor must stay in front of every site, and a down tunnel must not fall back to a direct connection
+---
+ browser/app/profile/000-tor-browser.js        |   4 +
+ browser/components/veil/VeilBrowser.sys.mjs   |   4 +
+ browser/components/veil/VeilVpn.sys.mjs       | 662 ++++++++++++++++++
+ browser/components/veil/VeilVpnBlake3.sys.mjs | 153 ++++
+ browser/components/veil/VeilVpnTunnel.sys.mjs | 451 ++++++++++++
+ browser/components/veil/moz.build             |   3 +
+ 6 files changed, 1277 insertions(+)
+ create mode 100644 browser/components/veil/VeilVpn.sys.mjs
+ create mode 100644 browser/components/veil/VeilVpnBlake3.sys.mjs
+ create mode 100644 browser/components/veil/VeilVpnTunnel.sys.mjs
+
+diff --git a/browser/app/profile/000-tor-browser.js b/browser/app/profile/000-tor-browser.js
+index 1f3b19195a2c3ad936450814423079efa55a7432..62041ef8185ac9f4e9dc74a79a24b855df8d47e0 100644
+--- a/browser/app/profile/000-tor-browser.js
++++ b/browser/app/profile/000-tor-browser.js
+@@ -1,5 +1,9 @@
+ // Browser home page
+ pref("browser.startup.homepage", "about:veil-home");
+ 
++// VEIL VPN is optional and off. Set veil.vpn.enabled in about:config.
++// There is no toolbar switch. See veil-browser/README.md.
++pref("veil.vpn.enabled", false);
++
+ // tor-browser#43864, tor-browser#40899: general browser support url.
+ pref("browser.base-browser-support-url", "https://support.torproject.org/tor-browser");
+diff --git a/browser/components/veil/VeilBrowser.sys.mjs b/browser/components/veil/VeilBrowser.sys.mjs
+index 355695a166b12450f12776cdc2e41107f8053294..f1ce3ff910995cbd324c467a2c56848c4162f9d7 100644
+--- a/browser/components/veil/VeilBrowser.sys.mjs
++++ b/browser/components/veil/VeilBrowser.sys.mjs
+@@ -10,6 +10,7 @@
+  * Responsibilities:
+  *  - load the signed app registry bundled with the browser;
+  *  - start the anonymity guard (fail closed if Tor settings are weakened);
++ *  - start VeilVpn, which stays idle unless veil.vpn.enabled is true;
+  *  - give each window its side panel and a VeilAppPanel driving it;
+  *  - keep the address bar's "Anonymous" chip in step with sign-in;
+  *  - run Cumulus://ID sign-in, catching the redirect before it is sent;
+@@ -18,6 +19,7 @@
+ const lazy = {};
+ ChromeUtils.defineESModuleGetters(lazy, {
+   VeilAnonymityGuard: "moz-src:///browser/components/veil/VeilAnonymityGuard.sys.mjs",
++  VeilVpn: "moz-src:///browser/components/veil/VeilVpn.sys.mjs",
+   AppPanel: "moz-src:///browser/components/veil/VeilAppPanel.sys.mjs",
+   CumulusID: "moz-src:///browser/components/veil/VeilCumulusID.sys.mjs",
+   VeilSignIn: "moz-src:///browser/components/veil/VeilSignIn.sys.mjs",
+@@ -67,6 +69,7 @@ export const VeilBrowser = {
+   init() {
+     registry = loadRegistry();
+     lazy.VeilAnonymityGuard.init();
++    lazy.VeilVpn.init();
+     cumulusId = new lazy.CumulusID({
+       registry,
+       openTab: (url, opts) => {
+@@ -116,5 +119,6 @@ export const VeilBrowser = {
+   onNewIdentity() {
+     for (const win of Services.wm.getEnumerator("navigator:browser")) panels.get(win)?.onNewIdentity();
+     lazy.VeilSignIn.onNewIdentity(cumulusId);
++    lazy.VeilVpn.onNewIdentity();
+   },
+ };
+diff --git a/browser/components/veil/VeilVpn.sys.mjs b/browser/components/veil/VeilVpn.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..93fae54f5768cfba9bfc9c1594784348d769e312
+--- /dev/null
++++ b/browser/components/veil/VeilVpn.sys.mjs
+@@ -0,0 +1,662 @@
++/* Optional VEIL VPN in front of Tor. Off unless veil.vpn.enabled is exactly
++ * true. While it is off this module does not open a socket, fetch a directory,
++ * or change Tor. While it is on, Tor's own upstream proxy is the loopback
++ * tunnel and the browser's proxy stays on Tor. A down tunnel fails closed:
++ * the browser is held offline and Tor is not given a direct path.
++ *
++ * Enable it from about:config. There is no toolbar control. See
++ * veil-browser/README.md.
++ */
++
++import { startBridge, VpnError, isIpv4, ssKeyLength } from "./VeilVpnTunnel.sys.mjs";
++
++export { VpnError };
++
++export const ENABLED_PREF = "veil.vpn.enabled";
++export const BLOCKED_PREF = "veil.vpn.blocked";
++export const VEIL_NODE_SUFFIX = ".infinitumveilvpn.app";
++
++/** Observed public directory. Contacted only when veil.vpn.directory is set to it. */
++export const PUBLIC_DIRECTORY = "https://api.infinitumveilvpn.app/v1/servers";
++
++const PREF = Object.freeze({
++  enabled: ENABLED_PREF,
++  transport: "veil.vpn.transport",
++  server: "veil.vpn.server",
++  address: "veil.vpn.address",
++  port: "veil.vpn.port",
++  method: "veil.vpn.method",
++  username: "veil.vpn.username",
++  password: "veil.vpn.password",
++  directory: "veil.vpn.directory",
++  blocked: BLOCKED_PREF,
++});
++
++const PUBLISHED_PORT = Object.freeze({
++  "http-connect": 443,
++  "shadowsocks-2022": 16080,
++});
++
++/** Firefox prefs that must stay in their Tor Browser state before the tunnel starts. */
++export const LEAK_RULES = Object.freeze([
++  ["network.proxy.type", v => v === 1, "the browser proxy must stay on Tor"],
++  ["network.proxy.socks", v => typeof v === "string" && v.trim() !== "", "Tor's SOCKS proxy must stay configured"],
++  ["network.proxy.socks_version", v => v === 5, "SOCKS version must stay 5"],
++  ["network.proxy.socks_remote_dns", v => v === true, "DNS must stay inside Tor"],
++  ["network.proxy.failover_direct", v => v !== true, "the browser must not fall back to a direct connection"],
++  ["network.proxy.no_proxies_on", v => v === undefined || String(v).trim() === "", "no site may bypass the proxy"],
++  ["network.proxy.http", v => v === undefined || v === "", "no HTTP proxy may bypass Tor"],
++  ["network.proxy.ssl", v => v === undefined || v === "", "no HTTPS proxy may bypass Tor"],
++  ["network.trr.mode", v => v === undefined || v === 0 || v === 5, "DNS over HTTPS must stay off"],
++  ["network.dns.disablePrefetch", v => v === true, "DNS prefetch must stay off"],
++  ["media.peerconnection.enabled", v => v === false, "WebRTC must stay off"],
++  ["media.navigator.enabled", v => v === false, "media devices must stay off"],
++]);
++
++export function leakProblems(readPref) {
++  const problems = [];
++  for (const [pref, ok, why] of LEAK_RULES) {
++    let value;
++    try {
++      value = readPref(pref);
++    } catch {
++      value = Symbol.for("unreadable");
++    }
++    let good = false;
++    try {
++      good = typeof value !== "symbol" && ok(value);
++    } catch {
++      good = false;
++    }
++    if (!good) problems.push({ pref, why });
++  }
++  return problems;
++}
++
++export function hostAllowed(host, { allowLoopback = false } = {}) {
++  if (typeof host !== "string") return false;
++  const h = host.trim().toLowerCase().replace(/\.$/, "");
++  if (h === "127.0.0.1") return allowLoopback === true;
++  if (!/^[a-z0-9.-]+$/.test(h) || h.includes("..") || h.startsWith(".") || h.endsWith(".") || h.includes(".-") || h.includes("-.")) {
++    return false;
++  }
++  if (!h.endsWith(VEIL_NODE_SUFFIX)) return false;
++  const label = h.slice(0, -VEIL_NODE_SUFFIX.length);
++  return label.length > 0 && !label.endsWith(".");
++}
++
++export function isPublicIpv4(host) {
++  if (!isIpv4(host)) return false;
++  const [a, b] = host.split(".").map(Number);
++  if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
++  if (a === 169 && b === 254) return false;
++  if (a === 172 && b >= 16 && b <= 31) return false;
++  if (a === 192 && b === 168) return false;
++  if (a === 100 && b >= 64 && b <= 127) return false;
++  return true;
++}
++
++const TRANSPORT_ALIAS = Object.freeze({
++  proxy: "http-connect",
++  "http-connect": "http-connect",
++  "shadowsocks-2022": "shadowsocks-2022",
++  ss2022: "shadowsocks-2022",
++});
++
++function asTransport(value) {
++  if (typeof value !== "string") return null;
++  return TRANSPORT_ALIAS[value.trim().toLowerCase()] || null;
++}
++
++function str(value) {
++  return typeof value === "string" ? value.trim() : "";
++}
++
++function decodeKey(password, method) {
++  const cleaned = password.trim().replace(/-/g, "+").replace(/_/g, "/");
++  const pad = cleaned.length % 4 === 0 ? cleaned : cleaned + "=".repeat((4 - (cleaned.length % 4)) % 4);
++  let bin;
++  try {
++    bin = atob(pad);
++  } catch {
++    throw new VpnError("bad-key");
++  }
++  const raw = new Uint8Array(bin.length);
++  for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i);
++  if (raw.length !== ssKeyLength(method)) throw new VpnError("bad-key");
++  return raw;
++}
++
++/**
++ * Turn /v1/servers JSON into connectable entries. Hosts outside VEIL's own
++ * suffix are dropped. WireGuard, IKEv2, OpenVPN, VLESS and any other mode
++ * are ignored. A live entry that names no host is returned with host "" so
++ * the caller can see the directory without dialing it.
++ */
++export function parseServerList(json, { allowLoopback = false } = {}) {
++  const rows = Array.isArray(json) ? json : json?.servers || json?.nodes;
++  if (!Array.isArray(rows)) throw new VpnError("directory");
++  const out = [];
++  for (const row of rows) {
++    if (!row || typeof row !== "object") continue;
++    const host = str(row.host || row.hostname);
++    if (host && !hostAllowed(host, { allowLoopback })) continue;
++    const address = str(row.address || row.ip);
++    if (address && !isIpv4(address)) continue;
++    const modes = [];
++    if (Array.isArray(row.modes)) modes.push(...row.modes);
++    if (Array.isArray(row.transports)) {
++      for (const t of row.transports) modes.push(t?.protocol || t?.mode || t);
++    }
++    if (row.shadowsocks2022 || row.shadowsocks_2022) modes.push("shadowsocks-2022");
++    if (row.proxy) modes.push("proxy");
++    const supported = [];
++    for (const mode of modes) {
++      const name = asTransport(typeof mode === "string" ? mode : mode?.protocol);
++      if (!name || supported.includes(name)) continue;
++      const fromRow = typeof mode === "object" && mode ? mode : null;
++      const nested = name === "shadowsocks-2022" ? (row.shadowsocks2022 || row.shadowsocks_2022) : row.proxy;
++      const port = Number(fromRow?.port ?? nested?.port ?? (name === "http-connect" ? row.proxyPort : row.ssPort) ?? 0);
++      const method = str(fromRow?.method || nested?.method || "");
++      supported.push(name);
++      out.push({
++        id: str(row.id),
++        host,
++        address,
++        transport: name,
++        port: Number.isInteger(port) && port > 0 ? port : PUBLISHED_PORT[name],
++        method: method || (name === "shadowsocks-2022" ? "2022-blake3-aes-256-gcm" : ""),
++      });
++    }
++  }
++  return out;
++}
++
++export function chooseTransport(entries, requested) {
++  const want = asTransport(requested);
++  if (want) return entries.find(e => e.transport === want) || null;
++  return entries.find(e => e.transport === "shadowsocks-2022")
++    || entries.find(e => e.transport === "http-connect")
++    || null;
++}
++
++export function assertDirectoryUrl(value) {
++  let url;
++  try {
++    url = new URL(value);
++  } catch {
++    throw new VpnError("directory");
++  }
++  if (url.protocol !== "https:" || url.username || url.password) throw new VpnError("directory");
++  if (url.pathname !== "/v1/servers") throw new VpnError("directory");
++  if (!hostAllowed(url.hostname)) throw new VpnError("directory");
++  return url.toString();
++}
++
++/**
++ * Decide the single node the tunnel may dial. Throws VpnError (a code, never
++ * the credential) instead of substituting a direct connection.
++ */
++export function planEndpoint({ read, directory = null, allowLoopback = false, credential = null }) {
++  let server = str(read(PREF.server));
++  let address = str(read(PREF.address));
++  let transport = str(read(PREF.transport));
++  let port = read(PREF.port);
++  let method = str(read(PREF.method)) || "2022-blake3-aes-256-gcm";
++  const username = credential?.username ?? str(read(PREF.username));
++  const password = credential?.password ?? str(read(PREF.password));
++
++  if (!server && directory) {
++    const withHost = directory.filter(entry => entry.host);
++    if (!withHost.length) throw new VpnError("directory-has-no-endpoint");
++    const choice = chooseTransport(withHost, transport);
++    if (!choice) throw new VpnError("no-supported-transport");
++    server = choice.host;
++    if (!address) address = choice.address;
++    if (!transport) transport = choice.transport;
++    if (port === undefined || port === 0 || port === "") port = choice.port;
++    if (choice.method) method = choice.method;
++  }
++  if (!transport) transport = "http-connect";
++  transport = asTransport(transport);
++  if (!transport) throw new VpnError("no-supported-transport");
++  if (!hostAllowed(server, { allowLoopback })) throw new VpnError("host-not-allowed");
++
++  if (port === undefined || port === 0 || port === "") port = PUBLISHED_PORT[transport];
++  port = Number(port);
++  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new VpnError("bad-port");
++  const loopback = allowLoopback && (address === "127.0.0.1" || (!address && server === "127.0.0.1"));
++  if (!loopback && port !== PUBLISHED_PORT[transport]) throw new VpnError("bad-port");
++
++  const connectHost = address || (isIpv4(server) ? server : "");
++  if (!isIpv4(connectHost)) throw new VpnError("need-address");
++  if (!(allowLoopback && connectHost === "127.0.0.1") && !isPublicIpv4(connectHost)) {
++    throw new VpnError("address-not-public");
++  }
++
++  if (transport === "http-connect") {
++    if (!username || !password) throw new VpnError("no-credential");
++    if (/[\r\n:]/.test(username) || /[\r\n]/.test(password)) throw new VpnError("bad-credential");
++    return {
++      transport, host: connectHost, port,
++      tls: connectHost !== "127.0.0.1",
++      servername: isIpv4(server) ? null : server,
++      username, password,
++    };
++  }
++  const key = decodeKey(password, method);
++  return {
++    transport, host: connectHost, port, tls: false, servername: null,
++    method, key, username: "", password: "",
++  };
++}
++
++export class VeilVpnController {
++  constructor({ prefs, tor, listen, connect, fetch: fetchImpl = null, allowLoopback = false, now = () => Date.now() }) {
++    this.prefs = prefs;
++    this.tor = tor;
++    this.listen = listen;
++    this.connect = connect;
++    this.fetchImpl = fetchImpl;
++    this.allowLoopback = allowLoopback === true;
++    this.now = now;
++    this.generation = 0;
++    this.chain = Promise.resolve();
++    this.bridge = null;
++    this.seal = null;
++    this.savedTor = undefined;
++    this.activated = false;
++    this.blockedByUs = false;
++    this.memoryCredential = null;
++    this.lastError = null;
++    this.silent = false;
++  }
++
++  start() {
++    this.prefs.watch("veil.vpn.", () => {
++      if (!this.silent) this.kick();
++    });
++    return this.kick();
++  }
++
++  noteCredential(credential) {
++    this.memoryCredential = credential && typeof credential === "object" ? {
++      username: str(credential.username),
++      password: typeof credential.password === "string" ? credential.password : "",
++    } : null;
++    return this.kick();
++  }
++
++  onNewIdentity() {
++    this.memoryCredential = null;
++    return this.kick();
++  }
++
++  kick() {
++    const gen = ++this.generation;
++    this.chain = this.chain.then(() => this.#sync(gen)).catch(() => {});
++    return this.chain;
++  }
++
++  async #sync(gen) {
++    if (this.prefs.read(PREF.enabled) !== true) {
++      await this.#shutdown();
++      return;
++    }
++    if (leakProblems(name => this.prefs.read(name)).length) {
++      await this.#failClosed(gen, "leak");
++      return;
++    }
++    let directory = null;
++    const directoryUrl = str(this.prefs.read(PREF.directory));
++    if (directoryUrl) {
++      try {
++        directory = await this.#directory(directoryUrl);
++      } catch (err) {
++        await this.#failClosed(gen, err?.code || "directory");
++        return;
++      }
++    }
++    if (gen !== this.generation) return;
++    let endpoint;
++    try {
++      endpoint = planEndpoint({
++        read: name => this.prefs.read(name),
++        directory,
++        allowLoopback: this.allowLoopback,
++        credential: this.memoryCredential,
++      });
++    } catch (err) {
++      await this.#failClosed(gen, err?.code || "config");
++      return;
++    }
++    if (gen !== this.generation) return;
++    try {
++      await this.#closeBridge();
++      const bridge = await startBridge({
++        node: { ...endpoint, connect: spec => this.connect(spec) },
++        listen: this.listen,
++        connect: this.connect,
++        now: this.now,
++      });
++      if (gen !== this.generation) {
++        bridge.close();
++        return;
++      }
++      this.bridge = bridge;
++      await this.#rememberTor();
++      await this.tor.set({ host: "127.0.0.1", port: bridge.port, type: 1, username: "", password: "" });
++      await this.#closeSeal();
++      this.#setBlocked(false);
++      this.activated = true;
++      this.lastError = null;
++    } catch (err) {
++      await this.#failClosed(gen, err?.code || "tunnel-down");
++    }
++  }
++
++  async #directory(url) {
++    assertDirectoryUrl(url);
++    if (!this.fetchImpl) throw new VpnError("directory");
++    const response = await this.fetchImpl(url, {
++      redirect: "error",
++      headers: { accept: "application/json" },
++    });
++    if (!response?.ok) throw new VpnError("directory");
++    const body = await response.text();
++    if (typeof body !== "string" || body.length > 1_000_000) throw new VpnError("directory");
++    return parseServerList(JSON.parse(body), { allowLoopback: this.allowLoopback });
++  }
++
++  async #failClosed(gen, code) {
++    if (gen !== this.generation) return;
++    await this.#closeBridge();
++    this.lastError = code;
++    this.#setBlocked(true);
++    await this.#rememberTor();
++    if (!this.seal) {
++      try {
++        this.seal = await this.listen({
++          host: "127.0.0.1",
++          port: 0,
++          loopbackOnly: true,
++          onConnection(conn) {
++            try { conn.close(); } catch { /* drop */ }
++          },
++        });
++      } catch {
++        this.seal = null;
++      }
++    }
++    if (gen !== this.generation) return;
++    await this.tor.set({
++      host: "127.0.0.1",
++      port: this.seal?.port || 9,
++      type: 1,
++      username: "",
++      password: "",
++    });
++    this.activated = true;
++  }
++
++  async #shutdown() {
++    if (!this.activated && this.savedTor === undefined && !this.bridge && !this.seal) return;
++    await this.#closeBridge();
++    await this.#closeSeal();
++    if (this.savedTor !== undefined) {
++      await this.tor.set(this.savedTor);
++      this.savedTor = undefined;
++    }
++    this.#setBlocked(false);
++    this.activated = false;
++    this.lastError = null;
++  }
++
++  async #rememberTor() {
++    if (this.savedTor === undefined) this.savedTor = await this.tor.get();
++  }
++
++  async #closeBridge() {
++    if (!this.bridge) return;
++    try { this.bridge.close(); } catch { /* already closed */ }
++    this.bridge = null;
++  }
++
++  async #closeSeal() {
++    if (!this.seal) return;
++    try { this.seal.close(); } catch { /* already closed */ }
++    this.seal = null;
++  }
++
++  #setBlocked(on) {
++    const current = this.prefs.read(PREF.blocked);
++    this.silent = true;
++    try {
++      if (on) {
++        if (current !== true) this.prefs.write(PREF.blocked, true);
++        this.blockedByUs = true;
++        return;
++      }
++      if (this.blockedByUs && current === true) this.prefs.write(PREF.blocked, false);
++      this.blockedByUs = false;
++    } finally {
++      this.silent = false;
++    }
++  }
++}
++
++function readBrowserPref(name) {
++  const S = globalThis.Services;
++  switch (S.prefs.getPrefType(name)) {
++    case S.prefs.PREF_INT: return S.prefs.getIntPref(name);
++    case S.prefs.PREF_BOOL: return S.prefs.getBoolPref(name);
++    case S.prefs.PREF_STRING: return S.prefs.getStringPref(name);
++    default: return undefined;
++  }
++}
++
++function writeBrowserPref(name, value) {
++  const S = globalThis.Services;
++  if (typeof value === "boolean") S.prefs.setBoolPref(name, value);
++  else if (typeof value === "number") S.prefs.setIntPref(name, value);
++  else S.prefs.setStringPref(name, String(value));
++}
++
++function firefoxListen({ host, port, loopbackOnly, onConnection }) {
++  if (host !== "127.0.0.1" || loopbackOnly !== true) throw new VpnError("not-loopback");
++  const { Cc, Ci } = globalThis;
++  const socket = Cc["@mozilla.org/network/server-socket;1"].createInstance(Ci.nsIServerSocket);
++  socket.init(port > 0 ? port : 0, true, -1);
++  socket.asyncListen({
++    onSocketAccepted(_server, transport) {
++      try {
++        onConnection(xpcomConnection(transport));
++      } catch {
++        try { transport.close(globalThis.Cr.NS_BINDING_ABORTED); } catch { /* already closed */ }
++      }
++    },
++    onStopListening() {},
++  });
++  return { port: socket.port, close() { try { socket.close(); } catch { /* already closed */ } } };
++}
++
++function xpcomConnection(transport) {
++  const { Cc, Ci, Cr, Services } = globalThis;
++  const input = transport.openInputStream(0, 0, 0).QueryInterface(Ci.nsIAsyncInputStream);
++  const output = transport.openOutputStream(0, 0, 0).QueryInterface(Ci.nsIAsyncOutputStream);
++  const binary = Cc["@mozilla.org/binaryinputstream;1"].createInstance(Ci.nsIBinaryInputStream);
++  binary.setInputStream(input);
++  let buf = new Uint8Array(0);
++  let eof = false;
++  const waiters = [];
++  const pump = {
++    onInputStreamReady(stream) {
++      try {
++        const n = stream.available();
++        const bytes = new Uint8Array(binary.readByteArray(n));
++        const merged = new Uint8Array(buf.length + bytes.length);
++        merged.set(buf, 0);
++        merged.set(bytes, buf.length);
++        buf = merged;
++        wake();
++        stream.asyncWait(pump, 0, 0, Services.tm.currentThread);
++      } catch (err) {
++        if (err?.result === Cr.NS_BASE_STREAM_WOULD_BLOCK) {
++          stream.asyncWait(pump, 0, 0, Services.tm.currentThread);
++          return;
++        }
++        eof = true;
++        wake();
++      }
++    },
++  };
++  input.asyncWait(pump, 0, 0, Services.tm.currentThread);
++  function wake() {
++    while (waiters.length && (buf.length || eof)) waiters.shift()();
++  }
++  return {
++    readSome() {
++      if (buf.length) {
++        const out = buf;
++        buf = new Uint8Array(0);
++        return Promise.resolve(out);
++      }
++      if (eof) return Promise.resolve(null);
++      return new Promise(resolve => {
++        waiters.push(() => {
++          if (buf.length) {
++            const out = buf;
++            buf = new Uint8Array(0);
++            resolve(out);
++          } else resolve(null);
++        });
++      });
++    },
++    write(bytes) {
++      const raw = Cc["@mozilla.org/binaryoutputstream;1"].createInstance(Ci.nsIBinaryOutputStream);
++      raw.setOutputStream(output);
++      raw.writeByteArray([...bytes], bytes.length);
++      return Promise.resolve();
++    },
++    close() {
++      try { transport.close(Cr.NS_OK); } catch { /* already closed */ }
++    },
++  };
++}
++
++async function firefoxConnect({ host, port, tls, servername }) {
++  if (!isIpv4(host)) throw new VpnError("need-address");
++  const { Cc, Ci, Services } = globalThis;
++  const sts = Cc["@mozilla.org/network/socket-transport-service;1"].getService(Ci.nsISocketTransportService);
++  let pinned = null;
++  if (tls) {
++    if (!servername) throw new VpnError("need-servername");
++    const override = Cc["@mozilla.org/network/native-dns-override;1"].getService(Ci.nsINativeDNSResolverOverride);
++    override.addIPOverride(servername, host);
++    pinned = servername;
++  }
++  try {
++    const transport = sts.createTransport(tls ? ["ssl"] : [], tls ? servername : host, port, null, null);
++    await new Promise((resolve, reject) => {
++      transport.setEventSink({
++        onTransportStatus(_t, status) {
++          if (status === Ci.nsISocketTransport.STATUS_CONNECTED_TO) resolve();
++        },
++      }, Services.tm.currentThread);
++      const timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
++      timer.initWithCallback(() => reject(new VpnError("tunnel-down")), 15000, Ci.nsITimer.TYPE_ONE_SHOT);
++    });
++    return xpcomConnection(transport);
++  } finally {
++    if (pinned) {
++      try {
++        Cc["@mozilla.org/network/native-dns-override;1"].getService(Ci.nsINativeDNSResolverOverride).clearHostOverride(pinned);
++      } catch { /* the connected socket already has the address */ }
++    }
++  }
++}
++
++function firefoxTor() {
++  let mod = null;
++  async function ready() {
++    if (!mod) mod = ChromeUtils.importESModule("resource://gre/modules/TorSettings.sys.mjs");
++    const { TorSettings, TorSettingsTopics } = mod;
++    if (!TorSettings.initialized) {
++      await new Promise(resolve => {
++        const obs = {
++          observe() {
++            globalThis.Services.obs.removeObserver(obs, TorSettingsTopics.Ready);
++            resolve();
++          },
++        };
++        globalThis.Services.obs.addObserver(obs, TorSettingsTopics.Ready);
++        if (TorSettings.initialized) {
++          globalThis.Services.obs.removeObserver(obs, TorSettingsTopics.Ready);
++          resolve();
++        }
++      });
++    }
++    return mod;
++  }
++  return {
++    async get() {
++      const { TorSettings } = await ready();
++      const proxy = TorSettings.getSettings().proxy;
++      if (!proxy?.enabled) return null;
++      return {
++        host: proxy.address,
++        port: proxy.port,
++        type: proxy.type,
++        username: proxy.username || "",
++        password: proxy.password || "",
++      };
++    },
++    async set(proxy) {
++      const { TorSettings, TorProxyType } = await ready();
++      if (!proxy) {
++        await TorSettings.changeSettings({ proxy: { enabled: false } });
++        return;
++      }
++      await TorSettings.changeSettings({
++        proxy: {
++          enabled: true,
++          type: proxy.type ?? TorProxyType.Socks5,
++          address: proxy.host,
++          port: proxy.port,
++          username: proxy.username || "",
++          password: proxy.password || "",
++        },
++      });
++    },
++  };
++}
++
++/** Browser entry. A no-op until veil.vpn.enabled is true. */
++export const VeilVpn = {
++  _controller: null,
++
++  init() {
++    if (this._controller || !globalThis.Services || !globalThis.Cc || !globalThis.ChromeUtils) return this._controller;
++    const prefs = {
++      read: readBrowserPref,
++      write: writeBrowserPref,
++      watch(branch, fn) {
++        globalThis.Services.prefs.addObserver(branch, { observe: () => fn() });
++      },
++    };
++    this._controller = new VeilVpnController({
++      prefs,
++      tor: firefoxTor(),
++      listen: firefoxListen,
++      connect: firefoxConnect,
++      fetch: (url, init) => globalThis.fetch(url, init),
++      allowLoopback: false,
++    });
++    this._controller.start();
++    return this._controller;
++  },
++
++  onNewIdentity() {
++    return this._controller?.onNewIdentity();
++  },
++};
+diff --git a/browser/components/veil/VeilVpnBlake3.sys.mjs b/browser/components/veil/VeilVpnBlake3.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..fb1d1d54636592dcf7c74465ce4495cf54748ef5
+--- /dev/null
++++ b/browser/components/veil/VeilVpnBlake3.sys.mjs
+@@ -0,0 +1,153 @@
++/* BLAKE3 key derivation for Shadowsocks 2022.
++ *
++ * This is a compact port of the portable BLAKE3 compression (BLAKE3-team,
++ * CC0) limited to inputs of one chunk (1024 bytes) and at most 64 bytes of
++ * output. Shadowsocks 2022 only asks it to derive a session subkey from a
++ * pre-shared key and a salt, which fits in that limit. Longer inputs throw
++ * rather than returning a wrong key.
++ */
++
++const IV = Uint32Array.from([
++  0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
++  0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
++]);
++
++const MSG_SCHEDULE = [
++  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
++  [2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8],
++  [3, 4, 10, 12, 13, 2, 7, 14, 6, 5, 9, 0, 11, 15, 8, 1],
++  [10, 7, 12, 9, 14, 3, 13, 15, 4, 0, 11, 2, 5, 8, 1, 6],
++  [12, 13, 9, 11, 15, 10, 14, 8, 7, 2, 5, 3, 0, 1, 6, 4],
++  [9, 14, 11, 5, 8, 12, 15, 1, 13, 3, 0, 10, 2, 6, 4, 7],
++  [11, 15, 5, 0, 1, 9, 8, 6, 14, 10, 2, 12, 3, 4, 7, 13],
++];
++
++const CHUNK_START = 1;
++const CHUNK_END = 2;
++const ROOT = 8;
++const DERIVE_KEY_CONTEXT = 32;
++const DERIVE_KEY_MATERIAL = 64;
++const BLOCK = 64;
++const CHUNK = 1024;
++
++const u32 = n => n >>> 0;
++
++function rotr(x, n) {
++  return u32((x >>> n) | (x << (32 - n)));
++}
++
++function load32(block, offset) {
++  return (
++    block[offset] |
++    (block[offset + 1] << 8) |
++    (block[offset + 2] << 16) |
++    (block[offset + 3] << 24)
++  ) >>> 0;
++}
++
++function store32(out, offset, word) {
++  out[offset] = word & 0xff;
++  out[offset + 1] = (word >>> 8) & 0xff;
++  out[offset + 2] = (word >>> 16) & 0xff;
++  out[offset + 3] = (word >>> 24) & 0xff;
++}
++
++function g(state, a, b, c, d, x, y) {
++  state[a] = u32(state[a] + state[b] + x);
++  state[d] = rotr(state[d] ^ state[a], 16);
++  state[c] = u32(state[c] + state[d]);
++  state[b] = rotr(state[b] ^ state[c], 12);
++  state[a] = u32(state[a] + state[b] + y);
++  state[d] = rotr(state[d] ^ state[a], 8);
++  state[c] = u32(state[c] + state[d]);
++  state[b] = rotr(state[b] ^ state[c], 7);
++}
++
++function compress(cv, block, blockLen, counter, flags) {
++  const words = new Uint32Array(16);
++  for (let i = 0; i < 16; i++) words[i] = load32(block, i * 4);
++  const state = new Uint32Array(16);
++  state.set(cv);
++  state[8] = IV[0];
++  state[9] = IV[1];
++  state[10] = IV[2];
++  state[11] = IV[3];
++  state[12] = counter >>> 0;
++  state[13] = Math.floor(counter / 2 ** 32) >>> 0;
++  state[14] = blockLen;
++  state[15] = flags;
++  for (let round = 0; round < 7; round++) {
++    const m = MSG_SCHEDULE[round];
++    g(state, 0, 4, 8, 12, words[m[0]], words[m[1]]);
++    g(state, 1, 5, 9, 13, words[m[2]], words[m[3]]);
++    g(state, 2, 6, 10, 14, words[m[4]], words[m[5]]);
++    g(state, 3, 7, 11, 15, words[m[6]], words[m[7]]);
++    g(state, 0, 5, 10, 15, words[m[8]], words[m[9]]);
++    g(state, 1, 6, 11, 12, words[m[10]], words[m[11]]);
++    g(state, 2, 7, 8, 13, words[m[12]], words[m[13]]);
++    g(state, 3, 4, 9, 14, words[m[14]], words[m[15]]);
++  }
++  const out = new Uint8Array(64);
++  for (let i = 0; i < 8; i++) store32(out, i * 4, state[i] ^ state[i + 8]);
++  for (let i = 0; i < 8; i++) store32(out, 32 + i * 4, state[i + 8] ^ cv[i]);
++  const next = new Uint32Array(8);
++  for (let i = 0; i < 8; i++) next[i] = state[i] ^ state[i + 8];
++  return { chaining: next, bytes: out };
++}
++
++function wordsOf(bytes) {
++  const cv = new Uint32Array(8);
++  for (let i = 0; i < 8; i++) cv[i] = load32(bytes, i * 4);
++  return cv;
++}
++
++/** Hash one chunk. `key` is 32 bytes or null (use the IV). */
++export function blake3(message, { key = null, flags = 0, outLen = 32 } = {}) {
++  if (!(message instanceof Uint8Array)) throw new Error("blake3 message must be bytes");
++  if (message.length > CHUNK) throw new Error("blake3 input exceeds one chunk");
++  if (outLen < 1 || outLen > 64) throw new Error("blake3 output length must be 1..64");
++  let cv = key ? wordsOf(key) : IV.slice();
++  const buf = new Uint8Array(BLOCK);
++  let bufLen = 0;
++  let blocks = 0;
++  let offset = 0;
++  while (offset < message.length) {
++    const take = Math.min(BLOCK - bufLen, message.length - offset);
++    buf.set(message.subarray(offset, offset + take), bufLen);
++    bufLen += take;
++    offset += take;
++    if (bufLen === BLOCK && offset < message.length) {
++      const start = blocks === 0 ? CHUNK_START : 0;
++      cv = compress(cv, buf, BLOCK, 0, flags | start).chaining;
++      blocks += 1;
++      buf.fill(0);
++      bufLen = 0;
++    }
++  }
++  const start = blocks === 0 ? CHUNK_START : 0;
++  const wide = compress(cv, buf, bufLen, 0, flags | start | CHUNK_END | ROOT).bytes;
++  return wide.slice(0, outLen);
++}
++
++const SESSION_CONTEXT = "shadowsocks 2022 session subkey";
++
++/**
++ * BLAKE3 derive_key, matching Xray-core's DeriveSessionSubKey:
++ * context is hashed under DERIVE_KEY_CONTEXT, and that 32-byte result keys
++ * the material hash under DERIVE_KEY_MATERIAL.
++ */
++export function deriveKey(context, material, outLen) {
++  const contextKey = blake3(new TextEncoder().encode(context), {
++    flags: DERIVE_KEY_CONTEXT,
++    outLen: 32,
++  });
++  return blake3(material, { key: contextKey, flags: DERIVE_KEY_MATERIAL, outLen });
++}
++
++export function sessionSubkey(psk, salt) {
++  if (psk.length !== salt.length) throw new Error("salt length must match the key");
++  const material = new Uint8Array(psk.length + salt.length);
++  material.set(psk, 0);
++  material.set(salt, psk.length);
++  return deriveKey(SESSION_CONTEXT, material, psk.length);
++}
+diff --git a/browser/components/veil/VeilVpnTunnel.sys.mjs b/browser/components/veil/VeilVpnTunnel.sys.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..b57dfdbd8f82474ec35f28697e7bd6dbb0d95b63
+--- /dev/null
++++ b/browser/components/veil/VeilVpnTunnel.sys.mjs
+@@ -0,0 +1,451 @@
++/* Local VEIL tunnel. The browser (and Tor in front of it) speaks SOCKS5 to a
++ * loopback listener. Each CONNECT is carried to one VEIL node and nowhere
++ * else: Shadowsocks 2022 (Xray-core 26.11.9, single pre-shared key) or HTTP
++ * CONNECT with Basic auth. Destination names are written into that tunnel.
++ * This module never resolves them.
++ */
++
++import { sessionSubkey } from "./VeilVpnBlake3.sys.mjs";
++
++export class VpnError extends Error {
++  constructor(code) {
++    super(code);
++    this.name = "VpnError";
++    this.code = code;
++  }
++}
++
++const text = new TextEncoder();
++const utf8 = new TextDecoder();
++
++export function concat(...parts) {
++  const len = parts.reduce((n, p) => n + p.length, 0);
++  const out = new Uint8Array(len);
++  let o = 0;
++  for (const p of parts) {
++    out.set(p, o);
++    o += p.length;
++  }
++  return out;
++}
++
++export function isIpv4(host) {
++  if (typeof host !== "string") return false;
++  const parts = host.split(".");
++  if (parts.length !== 4) return false;
++  return parts.every(p => p.length > 0 && p.length <= 3 && !/^0\d/.test(p) && Number(p) <= 255 && String(Number(p)) === p);
++}
++
++function randomBytes(n) {
++  const out = new Uint8Array(n);
++  crypto.getRandomValues(out);
++  return out;
++}
++
++function incrementNonce(nonce) {
++  for (let i = 0; i < nonce.length; i++) {
++    nonce[i] = (nonce[i] + 1) & 0xff;
++    if (nonce[i] !== 0) return;
++  }
++}
++
++function view(bytes) {
++  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
++}
++
++export function buffered(conn) {
++  let buf = new Uint8Array(0);
++  let eof = false;
++  async function fill() {
++    if (eof) throw new VpnError("eof");
++    const chunk = await conn.readSome();
++    if (!chunk || chunk.length === 0) {
++      eof = true;
++      throw new VpnError("eof");
++    }
++    buf = concat(buf, chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
++  }
++  return {
++    async exact(n) {
++      while (buf.length < n) await fill();
++      const out = buf.slice(0, n);
++      buf = buf.slice(n);
++      return out;
++    },
++    /** Bytes already read from the socket and not yet consumed. Does not wait. */
++    take() {
++      const out = buf;
++      buf = new Uint8Array(0);
++      return out;
++    },
++  };
++}
++
++async function importKey(raw) {
++  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
++}
++
++async function openSession(psk, salt) {
++  const raw = sessionSubkey(psk, salt);
++  return { key: await importKey(raw), nonce: new Uint8Array(12) };
++}
++
++async function seal(session, plain) {
++  const iv = session.nonce.slice();
++  incrementNonce(session.nonce);
++  const out = await crypto.subtle.encrypt({ name: "AES-GCM", iv, tagLength: 128 }, session.key, plain);
++  return new Uint8Array(out);
++}
++
++async function open(session, cipherBytes) {
++  const iv = session.nonce.slice();
++  incrementNonce(session.nonce);
++  try {
++    const out = await crypto.subtle.decrypt({ name: "AES-GCM", iv, tagLength: 128 }, session.key, cipherBytes);
++    return new Uint8Array(out);
++  } catch {
++    throw new VpnError("auth");
++  }
++}
++
++export function encodeSocksAddr(host, port) {
++  assertDestination(host, port);
++  const portBytes = new Uint8Array(2);
++  view(portBytes).setUint16(0, port);
++  if (isIpv4(host)) {
++    return concat(Uint8Array.of(0x01, ...host.split(".").map(Number)), portBytes);
++  }
++  const name = text.encode(host);
++  return concat(Uint8Array.of(0x03, name.length), name, portBytes);
++}
++
++export function decodeSocksAddr(bytes) {
++  if (bytes.length < 1) throw new VpnError("bad-destination");
++  if (bytes[0] === 1) {
++    if (bytes.length < 7) throw new VpnError("bad-destination");
++    const host = `${bytes[1]}.${bytes[2]}.${bytes[3]}.${bytes[4]}`;
++    return { host, port: view(bytes).getUint16(5), length: 7 };
++  }
++  if (bytes[0] === 3) {
++    const len = bytes[1];
++    if (bytes.length < 2 + len + 2) throw new VpnError("bad-destination");
++    const host = utf8.decode(bytes.subarray(2, 2 + len));
++    return { host, port: view(bytes).getUint16(2 + len), length: 2 + len + 2 };
++  }
++  throw new VpnError("bad-destination");
++}
++
++export function assertDestination(host, port) {
++  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new VpnError("bad-destination");
++  if (typeof host !== "string" || host.length < 1 || host.length > 253) throw new VpnError("bad-destination");
++  if (/[\u0000-\u0020\u007f:\\/@]/.test(host)) throw new VpnError("bad-destination");
++  if (!isIpv4(host) && !/^[A-Za-z0-9.-]+$/.test(host)) throw new VpnError("bad-destination");
++}
++
++function checkTime(unixSeconds, now) {
++  const skew = Math.abs(Math.floor(now() / 1000) - Number(unixSeconds));
++  if (skew > 30) throw new VpnError("bad-timestamp");
++}
++
++const METHODS = {
++  "2022-blake3-aes-128-gcm": 16,
++  "2022-blake3-aes-256-gcm": 32,
++};
++
++export function ssKeyLength(method) {
++  const n = METHODS[method];
++  if (!n) throw new VpnError("bad-method");
++  return n;
++}
++
++export async function encodeClientHandshake({ key, salt, host, port, payload = new Uint8Array(0), padding, now = () => Date.now() }) {
++  const session = await openSession(key, salt);
++  const pad = padding === undefined ? (payload.length < 900 ? (view(randomBytes(2)).getUint16(0) % 900) + 1 : 0) : padding;
++  if (pad < 0 || pad > 900) throw new VpnError("bad-padding");
++  const addr = encodeSocksAddr(host, port);
++  const padLen = new Uint8Array(2);
++  view(padLen).setUint16(0, pad);
++  const variable = concat(addr, padLen, new Uint8Array(pad), payload);
++  const fixed = new Uint8Array(11);
++  fixed[0] = 0;
++  view(fixed).setBigUint64(1, BigInt(Math.floor(now() / 1000)));
++  view(fixed).setUint16(9, variable.length);
++  const bytes = concat(salt, await seal(session, fixed), await seal(session, variable));
++  return { bytes, session };
++}
++
++export async function readClientHandshake(reader, key, now = () => Date.now()) {
++  const salt = await reader.exact(key.length);
++  const session = await openSession(key, salt);
++  const fixed = await open(session, await reader.exact(11 + 16));
++  if (fixed[0] !== 0) throw new VpnError("bad-header");
++  checkTime(view(fixed).getBigUint64(1), now);
++  const varLen = view(fixed).getUint16(9);
++  if (varLen < 1 || varLen > 65535 + 900) throw new VpnError("bad-header");
++  const variable = await open(session, await reader.exact(varLen + 16));
++  const dest = decodeSocksAddr(variable);
++  if (variable.length < dest.length + 2) throw new VpnError("bad-header");
++  const pad = view(variable).getUint16(dest.length);
++  const rest = dest.length + 2 + pad;
++  if (pad > 900 || variable.length < rest) throw new VpnError("bad-padding");
++  const early = variable.slice(rest);
++  if (pad === 0 && early.length === 0) throw new VpnError("bad-padding");
++  return { salt, session, host: dest.host, port: dest.port, early };
++}
++
++export async function encodeServerHandshake({ key, clientSalt, serverSalt, payload = new Uint8Array(0), now = () => Date.now() }) {
++  const session = await openSession(key, serverSalt);
++  const fixed = new Uint8Array(1 + 8 + clientSalt.length + 2);
++  fixed[0] = 1;
++  view(fixed).setBigUint64(1, BigInt(Math.floor(now() / 1000)));
++  fixed.set(clientSalt, 9);
++  view(fixed).setUint16(9 + clientSalt.length, payload.length);
++  const parts = [serverSalt, await seal(session, fixed)];
++  if (payload.length) parts.push(await seal(session, payload));
++  return { bytes: concat(...parts), session };
++}
++
++export async function readServerHandshake(reader, key, clientSalt, now = () => Date.now()) {
++  const serverSalt = await reader.exact(key.length);
++  const session = await openSession(key, serverSalt);
++  const fixedLen = 1 + 8 + clientSalt.length + 2;
++  const fixed = await open(session, await reader.exact(fixedLen + 16));
++  if (fixed[0] !== 1) throw new VpnError("bad-header");
++  checkTime(view(fixed).getBigUint64(1), now);
++  const echoed = fixed.subarray(9, 9 + clientSalt.length);
++  for (let i = 0; i < clientSalt.length; i++) {
++    if (echoed[i] !== clientSalt[i]) throw new VpnError("bad-header");
++  }
++  const initialLen = view(fixed).getUint16(9 + clientSalt.length);
++  if (initialLen > 65535) throw new VpnError("bad-header");
++  let initial = new Uint8Array(0);
++  if (initialLen > 0) initial = await open(session, await reader.exact(initialLen + 16));
++  return { session, initial };
++}
++
++export async function encodeChunk(session, payload) {
++  if (payload.length < 1 || payload.length > 65535) throw new VpnError("bad-chunk");
++  const len = new Uint8Array(2);
++  view(len).setUint16(0, payload.length);
++  return concat(await seal(session, len), await seal(session, payload));
++}
++
++export async function readChunk(reader, session) {
++  const lenBytes = await open(session, await reader.exact(2 + 16));
++  const n = view(lenBytes).getUint16(0);
++  if (n < 1 || n > 65535) throw new VpnError("bad-chunk");
++  return open(session, await reader.exact(n + 16));
++}
++
++function socksReply(code) {
++  return Uint8Array.of(0x05, code, 0x00, 0x01, 0, 0, 0, 0, 0, 0);
++}
++
++async function readSocksRequest(reader, greet) {
++  const head = await reader.exact(2);
++  if (head[0] !== 0x05) throw new VpnError("socks");
++  const methods = await reader.exact(head[1]);
++  if (!methods.includes(0x00)) throw new VpnError("socks");
++  // The client waits for this reply before it sends CONNECT.
++  await greet(Uint8Array.of(0x05, 0x00));
++  const req = await reader.exact(4);
++  if (req[0] !== 0x05) throw new VpnError("socks");
++  const cmd = req[1];
++  if (cmd !== 0x01) return { cmd };
++  let host;
++  let port;
++  if (req[3] === 0x01) {
++    const addr = await reader.exact(6);
++    host = `${addr[0]}.${addr[1]}.${addr[2]}.${addr[3]}`;
++    port = view(addr).getUint16(4);
++  } else if (req[3] === 0x03) {
++    const len = (await reader.exact(1))[0];
++    const name = await reader.exact(len);
++    const portBytes = await reader.exact(2);
++    host = utf8.decode(name);
++    port = view(portBytes).getUint16(0);
++  } else if (req[3] === 0x04) {
++    await reader.exact(18);
++    throw new VpnError("bad-destination");
++  } else {
++    throw new VpnError("bad-destination");
++  }
++  assertDestination(host, port);
++  return { cmd, host, port };
++}
++
++function basicToken(username, password) {
++  const raw = text.encode(`${username}:${password}`);
++  let s = "";
++  for (const b of raw) s += String.fromCharCode(b);
++  return btoa(s);
++}
++
++export async function writeHttpConnect(node, { host, port, username, password }) {
++  assertDestination(host, port);
++  const token = basicToken(username, password);
++  const req = text.encode(
++    `CONNECT ${host}:${port} HTTP/1.1\r\nHost: ${host}:${port}\r\nProxy-Authorization: Basic ${token}\r\n\r\n`);
++  await node.write(req);
++}
++
++export async function readHttpConnect(reader) {
++  const chunks = [];
++  let got = 0;
++  while (got < 8192) {
++    const byte = await reader.exact(1);
++    chunks.push(byte);
++    got += 1;
++    if (got >= 4) {
++      const tail = chunks.slice(-4).map(b => b[0]);
++      if (tail[0] === 13 && tail[1] === 10 && tail[2] === 13 && tail[3] === 10) break;
++    }
++  }
++  if (got >= 8192) throw new VpnError("proxy-rejected");
++  const header = utf8.decode(concat(...chunks));
++  const status = /^HTTP\/1\.[01] (\d+)/.exec(header);
++  if (!status || status[1] !== "200") throw new VpnError("proxy-rejected");
++}
++
++async function pump(read, write) {
++  try {
++    for (;;) {
++      const chunk = await read();
++      if (!chunk) return;
++      await write(chunk);
++    }
++  } catch (err) {
++    if (err?.code !== "eof") throw err;
++  }
++}
++
++async function handleClient(client, node, now) {
++  const reader = buffered(client);
++  let replied = false;
++  const fail = async code => {
++    if (!replied) {
++      replied = true;
++      try { await client.write(socksReply(code)); } catch { /* client already gone */ }
++    }
++    try { client.close(); } catch { /* already closed */ }
++  };
++  let request;
++  try {
++    request = await readSocksRequest(reader, bytes => client.write(bytes));
++  } catch {
++    await fail(0x01);
++    return;
++  }
++  if (request.cmd !== 0x01) {
++    await fail(0x07);
++    return;
++  }
++  let upstream;
++  try {
++    if (!isIpv4(node.host)) throw new VpnError("need-address");
++    upstream = await node.connect({
++      host: node.host,
++      port: node.port,
++      tls: node.tls === true,
++      servername: node.servername || null,
++    });
++  } catch {
++    await fail(0x05);
++    return;
++  }
++  const upstreamReader = buffered(upstream);
++  const shutdown = () => {
++    try { client.close(); } catch { /* already closed */ }
++    try { upstream.close(); } catch { /* already closed */ }
++  };
++  try {
++    if (node.transport === "http-connect") {
++      await writeHttpConnect(upstream, { host: request.host, port: request.port, username: node.username, password: node.password });
++      await readHttpConnect(upstreamReader);
++      replied = true;
++      await client.write(socksReply(0x00));
++      await Promise.all([
++        pump(() => readPayload(reader), data => upstream.write(data)),
++        pump(() => readPayload(upstreamReader), data => client.write(data)),
++      ]);
++    } else if (node.transport === "shadowsocks-2022") {
++      const salt = randomBytes(node.key.length);
++      const handshake = await encodeClientHandshake({
++        key: node.key, salt, host: request.host, port: request.port, now,
++      });
++      await upstream.write(handshake.bytes);
++      replied = true;
++      await client.write(socksReply(0x00));
++      const response = readServerHandshake(upstreamReader, node.key, salt, now);
++      let serverSession = null;
++      let initial = null;
++      await Promise.all([
++        pump(() => readPayload(reader), async data => {
++          await upstream.write(await encodeChunk(handshake.session, data));
++        }),
++        (async () => {
++          const opened = await response;
++          serverSession = opened.session;
++          initial = opened.initial;
++          if (initial.length) await client.write(initial);
++          await pump(async () => {
++            try { return await readChunk(upstreamReader, serverSession); }
++            catch (err) { if (err?.code === "eof") return null; throw err; }
++          }, data => client.write(data));
++        })(),
++      ]);
++    } else {
++      throw new VpnError("no-supported-transport");
++    }
++  } catch {
++    await fail(0x05);
++    shutdown();
++    return;
++  }
++  shutdown();
++}
++
++async function readPayload(reader) {
++  try {
++    const first = await reader.exact(1);
++    const rest = reader.take();
++    return rest.length ? concat(first, rest) : first;
++  } catch (err) {
++    if (err?.code === "eof") return null;
++    throw err;
++  }
++}
++
++/**
++ * Listen on 127.0.0.1 and carry each SOCKS5 CONNECT to the VEIL node.
++ * `listen` and `connect` are injected. `connect` is only ever called with
++ * the node IP.
++ */
++export async function startBridge({ node, listen, connect, now = () => Date.now() }) {
++  if (!node || !isIpv4(node.host)) throw new VpnError("need-address");
++  if (!Number.isInteger(node.port) || node.port < 1 || node.port > 65535) throw new VpnError("bad-port");
++  if (node.transport !== "http-connect" && node.transport !== "shadowsocks-2022") {
++    throw new VpnError("no-supported-transport");
++  }
++  const bound = node.transport === "shadowsocks-2022"
++    ? { ...node, connect, key: node.key }
++    : { ...node, connect };
++  let listener;
++  listener = await listen({
++    host: "127.0.0.1",
++    port: 0,
++    loopbackOnly: true,
++    onConnection(conn) {
++      handleClient(conn, bound, now).catch(() => {
++        try { conn.close(); } catch { /* already closed */ }
++      });
++    },
++  });
++  if (!listener || listener.port < 1) throw new VpnError("tunnel-down");
++  return {
++    port: listener.port,
++    close() {
++      try { listener.close(); } catch { /* already closed */ }
++    },
++  };
++}
+diff --git a/browser/components/veil/moz.build b/browser/components/veil/moz.build
+index bf09b4f42b064f854c7c65b159a0cc6bc6d3aebb..78b2525f74048b7e01d5a1ee9d7d5b862d0bd9d0 100644
+--- a/browser/components/veil/moz.build
++++ b/browser/components/veil/moz.build
+@@ -18,4 +18,7 @@ MOZ_SRC_FILES += [
+     "VeilSidePanel.sys.mjs",
+     "VeilSignIn.sys.mjs",
+     "VeilUrlbarProvider.sys.mjs",
++    "VeilVpn.sys.mjs",
++    "VeilVpnBlake3.sys.mjs",
++    "VeilVpnTunnel.sys.mjs",
+ ]

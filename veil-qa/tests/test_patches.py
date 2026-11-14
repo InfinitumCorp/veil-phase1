@@ -95,6 +95,11 @@ def test_pending_series_passes_lint_except_reviews(root):
 def test_pending_series_is_the_planned_order(root):
     names = [l for l in (root / "veil-browser/patches/pending/series").read_text().splitlines()
              if l and not l.startswith("#")]
-    assert [n[:4] for n in names] == ["0001", "0002", "0003", "0004", "0006"]
+    assert [n[:4] for n in names] == ["0001", "0002", "0003", "0004", "0006", "0007"]
     tags = [veil_patches.parse_patch(root / "veil-browser/patches/pending" / n, pending=True).tag for n in names]
-    assert tags == ["branding", "chrome", "network", "network", "chrome"]
+    assert tags == ["branding", "chrome", "network", "network", "chrome", "network"]
+    vpn = (root / "veil-browser/patches/pending" / names[-1]).read_text()
+    assert 'pref("veil.vpn.enabled", false);' in vpn
+    assert "VeilVpn.init()" in vpn
+    for ui in (".xhtml", ".css", "home.html", "navigator-toolbox"):
+        assert ui not in vpn, ui

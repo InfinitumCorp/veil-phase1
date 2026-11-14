@@ -15,10 +15,10 @@ VEIL-Tag: network
 VEIL-Reason: VEIL is always anonymous: a weakened Tor setting must stop traffic, not leak it
 ---
  browser/components/BrowserGlue.sys.mjs        |   6 +
- .../veil/VeilAnonymityGuard.sys.mjs           | 195 ++++++++++++++++++
+ .../veil/VeilAnonymityGuard.sys.mjs           | 207 ++++++++++++++++++
  browser/components/veil/VeilBrowser.sys.mjs   |   2 +
  browser/components/veil/moz.build             |   1 +
- 4 files changed, 204 insertions(+)
+ 4 files changed, 216 insertions(+)
  create mode 100644 browser/components/veil/VeilAnonymityGuard.sys.mjs
 
 diff --git a/browser/components/BrowserGlue.sys.mjs b/browser/components/BrowserGlue.sys.mjs
@@ -40,10 +40,10 @@ index 13112da9038f621cdbbefa7ce5fa50a5e3b7ce81..7c65e5b0ab013f24057ea95c758e3021
      try {
 diff --git a/browser/components/veil/VeilAnonymityGuard.sys.mjs b/browser/components/veil/VeilAnonymityGuard.sys.mjs
 new file mode 100644
-index 0000000000000000000000000000000000000000..a9ed6764077c52b445add95dfcf122c8365ca0cc
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000
 --- /dev/null
 +++ b/browser/components/veil/VeilAnonymityGuard.sys.mjs
-@@ -0,0 +1,195 @@
+@@ -0,0 +1,207 @@
 +/* VEIL anonymity guard: VEIL is always anonymous.
 + *
 + * VEIL has one workspace and every connection goes over Tor. This module
@@ -57,6 +57,11 @@ index 0000000000000000000000000000000000000000..a9ed6764077c52b445add95dfcf122c8
 + *
 + * It changes nothing a website can observe: it only reads preferences and
 + * toggles the browser's offline state.
++ *
++ * veil.vpn.blocked is unset unless the optional VEIL VPN tunnel is on and
++ * not actually up. An absent or false value leaves this guard exactly as
++ * strict as Tor-only VEIL: startup with stock Tor Browser proxy settings
++ * stays online.
 + *
 + * Installed by patch 0003 ([network]); loaded from BrowserGlue at startup:
 + *   import { VeilAnonymityGuard } from "moz-src:///browser/components/veil/VeilAnonymityGuard.sys.mjs";
@@ -114,9 +119,16 @@ index 0000000000000000000000000000000000000000..a9ed6764077c52b445add95dfcf122c8
 +    ok: v => v === undefined || v === 0 || v === 5,
 +    why: "DNS over HTTPS must stay off; Tor resolves names",
 +  },
++  {
++    pref: "veil.vpn.blocked",
++    // Only the VPN controller sets this, and only while the feature is on
++    // but the tunnel is not. Unset is the normal Tor-only browser.
++    ok: v => v !== true,
++    why: "VEIL VPN was requested but its tunnel is not up, so traffic must not leave",
++  },
 +]);
 +
-+const WATCHED_BRANCHES = ["network.proxy.", "network.trr."];
++const WATCHED_BRANCHES = ["network.proxy.", "network.trr.", "veil.vpn."];
 +export const BLOCKED_TOPIC = "veil-anonymity-blocked";
 +export const RESTORED_TOPIC = "veil-anonymity-restored";
 +

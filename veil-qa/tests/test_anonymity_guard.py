@@ -22,3 +22,13 @@ def test_guard_is_installed_and_started_first(root):
     added = [l[1:] for l in patch.splitlines() if l.startswith("+") and not l.startswith("+++")]
     glue = "\n".join(added)
     assert ').VeilAnonymityGuard.init();' in glue
+    # The patch is what the browser build installs, so it has to be the source.
+    src = (root / "veil-browser" / "src" / "VeilAnonymityGuard.sys.mjs").read_text()
+    start = patch.index("+++ b/browser/components/veil/VeilAnonymityGuard.sys.mjs\n")
+    body = []
+    for line in patch[start:].splitlines()[1:]:
+        if line.startswith("diff --git "):
+            break
+        if line.startswith("+"):
+            body.append(line[1:] + "\n")
+    assert "".join(body) == src
