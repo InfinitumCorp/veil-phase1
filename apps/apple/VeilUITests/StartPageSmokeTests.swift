@@ -30,8 +30,7 @@ final class StartPageSmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["VEIL</>"].exists)
         app.buttons["toolbar.menu"].tap()
         let settings = app.buttons["menu.settings"]
-        if !settings.waitForExistence(timeout: 5) { print("VEIL-UI-TREE\n" + app.debugDescription) }
-        XCTAssertTrue(settings.exists)
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
         settings.tap()
         XCTAssertTrue(app.staticTexts["Wipe on close"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["HTTPS-only"].exists)

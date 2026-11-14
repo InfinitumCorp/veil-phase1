@@ -273,6 +273,9 @@ struct Toolbar: View {
             VeilIcon(kind: icon)
                 .foregroundStyle(enabled ? VeilColor.ink : VeilColor.disabled)
                 .frame(width: 34, height: 34)
+                // Plain buttons only hit-test the drawn glyph on macOS (the menu
+                // icon was a 4 pt wide target); make the whole 34 pt square clickable.
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
