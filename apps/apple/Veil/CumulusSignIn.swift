@@ -158,7 +158,7 @@ protocol FormPosting: AnyObject {
 
 /// Refuses anything that is not an allowed Tor path. The live poster is
 /// `ProxiedFormPoster`, which uses a URLSession bound to the local SOCKS port.
-struct RefusingFetcher: FormPosting {
+final class RefusingFetcher: FormPosting, Sendable {
     func post(url: URL, body: String) async throws -> HTTPResult {
         throw TorClientError.trafficPaused
     }
