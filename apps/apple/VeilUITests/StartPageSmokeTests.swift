@@ -14,7 +14,8 @@ final class StartPageSmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["© 2026 Infinitum Corporation"].exists)
         let status = app.staticTexts["tor.status"]
         XCTAssertTrue(status.waitForExistence(timeout: 5))
-        let known = NSPredicate(format: "label CONTAINS %@", "Tor")
+        // macOS puts a SwiftUI Text's string in value, iOS in label.
+        let known = NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "Tor", "Tor")
         expectation(for: known, evaluatedWith: status)
         waitForExpectations(timeout: 10)
         XCTAssertEqual(app.webViews.count, 0)
@@ -29,7 +30,8 @@ final class StartPageSmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["VEIL</>"].exists)
         app.buttons["toolbar.menu"].tap()
         let settings = app.buttons["menu.settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        if !settings.waitForExistence(timeout: 5) { print("VEIL-UI-TREE\n" + app.debugDescription) }
+        XCTAssertTrue(settings.exists)
         settings.tap()
         XCTAssertTrue(app.staticTexts["Wipe on close"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["HTTPS-only"].exists)
