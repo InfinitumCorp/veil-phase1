@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "version": 9,
-  "signin": {"label": "Sign In", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#cid", "note": "Cumulus://ID. Opens the CID page until Cumulus://ID publishes its sign-in addresses; then add a cid block (issuer, authorize_url, token_url, client_id, redirect_uri) and Sign In runs the full sign-in."},
-  "mail": {"label": "Mail", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange#mail"},
+  "version": 10,
+  "signin": {"label": "Sign In", "url": "https://id.cumuluscloud.app/account", "note": "Cumulus://ID (OpenID Connect, PKCE S256, public client veil). The redirect address is never loaded: VEIL catches the navigation and exchanges the code itself, over Tor.", "cid": {"issuer": "https://id.cumuluscloud.app/realms/cumulus", "authorize_url": "https://id.cumuluscloud.app/realms/cumulus/protocol/openid-connect/auth", "token_url": "https://id.cumuluscloud.app/realms/cumulus/protocol/openid-connect/token", "client_id": "veil", "redirect_uri": "https://infinitumveil.app/cid/callback"}},
+  "mail": {"label": "Mail", "url": "https://mail.cumuluscloud.app"},
   "apps": [
     {"id": "cndctr", "name": "/CNDCTR/™", "summary": "AI coding & execution workspace", "url": "https://infinitum-corporation.vercel.app/products/cndctr", "panel": true},
     {"id": "cumulus", "name": "Cumulus://Cloud™", "summary": "AI cloud, storage & data exchange", "url": "https://infinitum-corporation.vercel.app/products/cumulus-exchange"},
