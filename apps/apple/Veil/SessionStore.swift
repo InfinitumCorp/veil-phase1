@@ -145,7 +145,9 @@ enum DownloadDirectory {
     }
 
     static func sanitize(_ name: String) -> String {
-        let base = URL(fileURLWithPath: name).lastPathComponent
+        // Split by hand: URL(fileURLWithPath:) resolves "" and ".." against the
+        // working directory, which turns them into "/" (then "_") on a test runner.
+        let base = name.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? ""
         let scalars = base.unicodeScalars.map { scalar -> Character in
             let value = scalar.value
             let allowed = (48...57).contains(value) || (65...90).contains(value) || (97...122).contains(value) || value == 46 || value == 95 || value == 45 || value == 32

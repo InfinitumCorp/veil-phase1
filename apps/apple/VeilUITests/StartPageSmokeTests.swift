@@ -14,7 +14,8 @@ final class StartPageSmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["© 2026 Infinitum Corporation"].exists)
         let status = app.staticTexts["tor.status"]
         XCTAssertTrue(status.waitForExistence(timeout: 5))
-        let known = NSPredicate(format: "label CONTAINS %@", "Tor")
+        // macOS puts a SwiftUI Text's string in value, iOS in label.
+        let known = NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "Tor", "Tor")
         expectation(for: known, evaluatedWith: status)
         waitForExpectations(timeout: 10)
         XCTAssertEqual(app.webViews.count, 0)

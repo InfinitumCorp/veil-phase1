@@ -55,8 +55,13 @@ enum TrafficGate: Equatable {
         if !problems.isEmpty {
             return .blocked(problems)
         }
-        guard torState == .connected, let endpoint, AnonymityGuard.isLoopback(endpoint.host) else {
+        guard torState == .connected, let endpoint else {
             return .paused(VeilCopy.statusError)
+        }
+        // A proxy that is not on this device is not our Tor: refuse it outright
+        // instead of waiting for it to come back.
+        guard AnonymityGuard.isLoopback(endpoint.host) else {
+            return .blocked([AnonymityProblem(pref: "veil.socks_host", why: "the Tor SOCKS port must be on this device (loopback)")])
         }
         return .allowed(endpoint)
     }

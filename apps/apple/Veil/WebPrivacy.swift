@@ -23,7 +23,6 @@ struct WebPrivacyPlan: Equatable {
         elementFullscreen: false,
         mediaPlaybackRequiresUserAction: true,
         customUserAgent: nil,
-        leakScript: LeakBlock.userScript,
         referrerScript: """
         (function () {
           var meta = document.createElement("meta");
@@ -32,7 +31,8 @@ struct WebPrivacyPlan: Equatable {
           var root = document.head || document.documentElement;
           if (root) root.appendChild(meta);
         })();
-        """
+        """,
+        leakScript: LeakBlock.userScript
     )
 
     /// The script must not be able to phone home by itself.
